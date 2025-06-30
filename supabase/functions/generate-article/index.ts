@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
     // Get the authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('No authorization header');
+      throw new Error('No authorization header provided');
     }
 
     // Parse request body
@@ -61,17 +61,24 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    // Create Supabase client with service role key for database operations
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Create another client with the user's token for auth verification
+    const supabaseUser = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
       global: {
         headers: { Authorization: authHeader },
       },
     });
 
-    // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // Get the current user using the user's token
+    const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
     if (userError || !user) {
-      throw new Error('User not authenticated');
+      console.error('User authentication error:', userError);
+      throw new Error('User not authenticated. Please sign in and try again.');
     }
+
+    console.log(`Authenticated user: ${user.email} (${user.id})`);
 
     // Determine topics to process
     const topicsToProcess = bulk_topics || [topic!];
@@ -85,8 +92,8 @@ Deno.serve(async (req) => {
         const article = await generateArticle(currentTopic, openaiApiKey);
         generatedArticles.push(article);
 
-        // Save to database with user_id
-        const { data: savedArticle, error: dbError } = await supabase
+        // Save to database with user_id using admin client
+        const { data: savedArticle, error: dbError } = await supabaseAdmin
           .from('articles')
           .insert({
             user_id: user.id,
@@ -112,7 +119,7 @@ Deno.serve(async (req) => {
         if (notion_parent_page_id && savedArticle) {
           try {
             console.log(`Saving to Notion parent page: ${notion_parent_page_id}`);
-            const notionResults = await saveToNotion(savedArticle, notion_parent_page_id, supabase, user.id);
+            const notionResults = await saveToNotion(savedArticle, notion_parent_page_id, supabaseAdmin, user.id);
             console.log(`Saved to Notion - Page: ${notionResults.pageId}, Database: ${notionResults.databaseEntryId}`);
           } catch (notionError) {
             console.error('Notion error:', notionError);
