@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Settings, BarChart3, PlusCircle, LogOut, User } from 'lucide-react';
+import { BarChart3, PlusCircle, LogOut, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Layout() {
@@ -18,14 +18,10 @@ export default function Layout() {
             <div className="flex items-center">
               <div className="flex-shrink-0 flex items-center">
                 <img 
-                  src="/Datastep_new_transparent_wide_150.png" 
-                  alt="Datastep" 
-                  className="h-8 w-auto"
+                  src="/BlogGen_Pro_Logo.png" 
+                  alt="BlogGen Pro" 
+                  className="h-10 w-auto"
                 />
-                <div className="ml-3 flex flex-col">
-                  <span className="text-xl font-bold text-gray-900">BlogGen Pro</span>
-                  <span className="text-xs text-gray-500 -mt-1">by Datastep</span>
-                </div>
               </div>
               <div className="hidden sm:ml-8 sm:flex sm:space-x-8">
                 <NavLink
@@ -53,19 +49,6 @@ export default function Layout() {
                 >
                   <BarChart3 className="h-4 w-4 mr-2" />
                   Dashboard
-                </NavLink>
-                <NavLink
-                  to="/settings"
-                  className={({ isActive }) =>
-                    `inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'border-blue-500 text-gray-900'
-                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                    }`
-                  }
-                >
-                  <Settings className="h-4 w-4 mr-2" />
-                  Settings
                 </NavLink>
               </div>
             </div>

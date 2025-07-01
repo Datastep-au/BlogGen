@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Clock, CheckCircle2, AlertCircle, Eye, Edit3 } from 'lucide-react';
+import { Calendar, Eye, Edit3, Copy, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Article } from '../types';
 
@@ -7,10 +7,11 @@ interface ArticleCardProps {
   article: Article;
   onView: (article: Article) => void;
   onEdit: (article: Article) => void;
-  onSchedule: (article: Article) => void;
 }
 
-export default function ArticleCard({ article, onView, onEdit, onSchedule }: ArticleCardProps) {
+export default function ArticleCard({ article, onView, onEdit }: ArticleCardProps) {
+  const [copied, setCopied] = React.useState(false);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'draft':
@@ -26,16 +27,13 @@ export default function ArticleCard({ article, onView, onEdit, onSchedule }: Art
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'approved':
-        return <CheckCircle2 className="h-4 w-4" />;
-      case 'scheduled':
-        return <Clock className="h-4 w-4" />;
-      case 'published':
-        return <CheckCircle2 className="h-4 w-4" />;
-      default:
-        return <AlertCircle className="h-4 w-4" />;
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
     }
   };
 
@@ -51,8 +49,7 @@ export default function ArticleCard({ article, onView, onEdit, onSchedule }: Art
           </p>
           <div className="flex items-center space-x-4">
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(article.status)}`}>
-              {getStatusIcon(article.status)}
-              <span className="ml-1 capitalize">{article.status}</span>
+              <span className="capitalize">{article.status}</span>
             </span>
             {article.scheduled_date && (
               <div className="flex items-center text-xs text-gray-500">
@@ -100,15 +97,17 @@ export default function ArticleCard({ article, onView, onEdit, onSchedule }: Art
           <Edit3 className="h-4 w-4 mr-1" />
           Edit
         </button>
-        {article.status === 'approved' && (
-          <button
-            onClick={() => onSchedule(article)}
-            className="flex items-center px-3 py-1.5 text-sm text-green-600 hover:text-green-700 hover:bg-green-50 rounded-md transition-colors"
-          >
-            <Calendar className="h-4 w-4 mr-1" />
-            Schedule
-          </button>
-        )}
+        <button
+          onClick={() => copyToClipboard(article.content)}
+          className="flex items-center px-3 py-1.5 text-sm text-green-600 hover:text-green-700 hover:bg-green-50 rounded-md transition-colors"
+        >
+          {copied ? (
+            <CheckCircle2 className="h-4 w-4 mr-1" />
+          ) : (
+            <Copy className="h-4 w-4 mr-1" />
+          )}
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
       </div>
     </div>
   );

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
 import TopicForm from '../components/TopicForm';
-import { supabase } from '../lib/supabase';
 
 export default function Generate() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -14,8 +13,7 @@ export default function Generate() {
 
   const handleTopicSubmit = async (data: { 
     topic?: string; 
-    bulk_topics?: string[]; 
-    notion_parent_page_id?: string 
+    bulk_topics?: string[];
   }) => {
     setIsGenerating(true);
     setGenerationStatus(null);
@@ -201,8 +199,8 @@ export default function Generate() {
             <div className="flex items-start">
               <div className="w-2 h-2 bg-purple-600 rounded-full mt-2 mr-3 flex-shrink-0" />
               <div>
-                <h4 className="font-medium text-gray-900">Notion Integration</h4>
-                <p className="text-sm text-gray-600">Automatically saves articles as pages in your Notion workspace</p>
+                <h4 className="font-medium text-gray-900">Easy Editing</h4>
+                <p className="text-sm text-gray-600">Edit and refine your articles with our built-in editor</p>
               </div>
             </div>
           </div>

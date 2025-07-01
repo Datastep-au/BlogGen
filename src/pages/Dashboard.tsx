@@ -12,7 +12,7 @@ export default function Dashboard() {
   const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
-  const [modalMode, setModalMode] = useState<'view' | 'edit' | 'schedule'>('view');
+  const [modalMode, setModalMode] = useState<'view' | 'edit'>('view');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
@@ -75,11 +75,6 @@ export default function Dashboard() {
     setModalMode('edit');
   };
 
-  const handleScheduleArticle = (article: Article) => {
-    setSelectedArticle(article);
-    setModalMode('schedule');
-  };
-
   const handleSaveArticle = async (article: Article) => {
     try {
       const { error } = await supabase
@@ -99,26 +94,6 @@ export default function Dashboard() {
       await loadArticles();
     } catch (error) {
       console.error('Error saving article:', error);
-    }
-  };
-
-  const handleScheduleSubmit = async (article: Article, scheduledDate: string) => {
-    try {
-      const { error } = await supabase
-        .from('articles')
-        .update({
-          status: 'scheduled',
-          scheduled_date: scheduledDate,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', article.id)
-        .eq('user_id', user?.id);
-
-      if (error) throw error;
-      
-      await loadArticles();
-    } catch (error) {
-      console.error('Error scheduling article:', error);
     }
   };
 
@@ -233,7 +208,6 @@ export default function Dashboard() {
               article={article}
               onView={handleViewArticle}
               onEdit={handleEditArticle}
-              onSchedule={handleScheduleArticle}
             />
           ))}
         </div>
@@ -245,7 +219,6 @@ export default function Dashboard() {
         isOpen={!!selectedArticle}
         onClose={() => setSelectedArticle(null)}
         onSave={handleSaveArticle}
-        onSchedule={handleScheduleSubmit}
         mode={modalMode}
       />
     </div>

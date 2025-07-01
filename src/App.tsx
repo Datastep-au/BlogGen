@@ -5,7 +5,6 @@ import AuthGuard from './components/AuthGuard';
 import Layout from './components/Layout';
 import Generate from './pages/Generate';
 import Dashboard from './pages/Dashboard';
-import Settings from './pages/Settings';
 
 function App() {
   return (
@@ -16,7 +15,6 @@ function App() {
             <Route path="/" element={<Layout />}>
               <Route index element={<Generate />} />
               <Route path="dashboard" element={<Dashboard />} />
-              <Route path="settings" element={<Settings />} />
             </Route>
           </Routes>
         </AuthGuard>

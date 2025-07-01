@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, CheckCircle2, ExternalLink, Settings } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function AuthPage() {
@@ -66,14 +66,12 @@ export default function AuthPage() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-6">
             <img 
-              src="/Datastep_new_transparent_wide_150.png" 
-              alt="Datastep" 
-              className="h-12 w-auto"
+              src="/BlogGen_Pro_Logo_with_background.png" 
+              alt="BlogGen Pro" 
+              className="h-32 w-auto"
             />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">BlogGen Pro</h1>
-          <p className="text-sm text-gray-500 mb-4">by Datastep</p>
-          <p className="text-gray-600">
+          <p className="text-gray-600 text-lg">
             {isSignUp ? 'Create your account' : 'Sign in to your account'}
           </p>
         </div>
@@ -102,7 +100,7 @@ export default function AuthPage() {
             </div>
           )}
 
-          {/* Email Sign In Form - More prominent */}
+          {/* Email Sign In Form */}
           <form onSubmit={handleSubmit} className="space-y-6 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -168,7 +166,7 @@ export default function AuthPage() {
             </div>
           </div>
 
-          {/* Google Sign In - Secondary option */}
+          {/* Google Sign In */}
           <button
             onClick={handleGoogleSignIn}
             disabled={loading}
@@ -215,68 +213,8 @@ export default function AuthPage() {
           </div>
         </div>
 
-        {/* Configuration Status */}
-        <div className="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-sm font-medium text-gray-900 mb-4 flex items-center">
-            <Settings className="h-4 w-4 mr-2" />
-            Authentication Status
-          </h3>
-          <div className="space-y-3 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Supabase Connection:</span>
-              <div className="flex items-center">
-                <CheckCircle2 className="h-4 w-4 text-green-600 mr-2" />
-                <span className="text-green-700">Connected</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Email Authentication:</span>
-              <div className="flex items-center">
-                <CheckCircle2 className="h-4 w-4 text-green-600 mr-2" />
-                <span className="text-green-700">Ready</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Google OAuth:</span>
-              <div className="flex items-center">
-                <div className="h-4 w-4 bg-yellow-500 rounded-full mr-2"></div>
-                <span className="text-yellow-700">Configuration Required</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
-            <p className="text-xs text-blue-800 mb-2">
-              <strong>Google OAuth Setup Required:</strong>
-            </p>
-            <ol className="text-xs text-blue-700 space-y-1 list-decimal list-inside">
-              <li>Enable Google provider in Supabase Dashboard</li>
-              <li>Configure Google OAuth credentials</li>
-              <li>Set authorized redirect URIs</li>
-            </ol>
-            <div className="mt-2">
-              <a
-                href="https://supabase.com/docs/guides/auth/social-login/auth-google"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center text-xs text-blue-600 hover:text-blue-700"
-              >
-                <ExternalLink className="h-3 w-3 mr-1" />
-                Setup Guide
-              </a>
-            </div>
-          </div>
-
-          <div className="mt-3 p-3 bg-green-50 rounded border border-green-200">
-            <p className="text-xs text-green-800">
-              <strong>Recommended:</strong> Use email sign-in for reliable authentication. 
-              It's fully configured and ready to use.
-            </p>
-          </div>
-        </div>
-
         {/* Features */}
-        <div className="mt-6 text-center">
+        <div className="mt-8 text-center">
           <p className="text-sm text-gray-600 mb-4">What you'll get:</p>
           <div className="grid grid-cols-1 gap-2 text-sm text-gray-700">
             <div className="flex items-center justify-center">
@@ -285,16 +223,16 @@ export default function AuthPage() {
             </div>
             <div className="flex items-center justify-center">
               <div className="w-2 h-2 bg-purple-600 rounded-full mr-2"></div>
-              Notion workspace integration
+              Article editing and management
             </div>
             <div className="flex items-center justify-center">
               <div className="w-2 h-2 bg-green-600 rounded-full mr-2"></div>
-              Article management dashboard
+              Professional content creation
             </div>
           </div>
         </div>
 
-        {/* Datastep Footer */}
+        {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-xs text-gray-500">
             Powered by <span className="font-medium text-gray-700">Datastep</span> - 
