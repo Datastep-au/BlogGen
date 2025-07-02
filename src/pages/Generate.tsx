@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
 import TopicForm from '../components/TopicForm';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 
 export default function Generate() {
   const { user } = useAuth();
@@ -41,11 +42,14 @@ export default function Generate() {
       }
 
       // Get the current session to ensure we have a valid token
-      const { data: { session } } = await import('../lib/supabase').then(m => m.supabase.auth.getSession());
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (!session?.access_token) {
+      if (sessionError || !session?.access_token) {
+        console.error('Session error:', sessionError);
         throw new Error('No valid session found. Please sign out and sign in again.');
       }
+
+      console.log('Using session token for user:', session.user?.email);
 
       const apiUrl = `${supabaseUrl}/functions/v1/generate-article`;
       const headers = {
@@ -55,7 +59,6 @@ export default function Generate() {
       };
 
       console.log('Making request to:', apiUrl);
-      console.log('Using session token:', session.access_token.substring(0, 20) + '...');
 
       const response = await fetch(apiUrl, {
         method: 'POST',
