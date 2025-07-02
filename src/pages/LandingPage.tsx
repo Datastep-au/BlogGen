@@ -17,6 +17,14 @@ export default function LandingPage() {
               />
             </div>
             <div className="flex items-center space-x-4">
+              <a
+                href="https://datastep.com.au/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colours"
+              >
+                Datastep
+              </a>
               <Link
                 to="/auth"
                 className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colours"
@@ -244,12 +252,31 @@ export default function LandingPage() {
               />
               <div>
                 <div className="text-lg font-semibold">BlogGen Pro</div>
-                <div className="text-sm text-gray-400">by Datastep</div>
+                <div className="text-sm text-gray-400">
+                  by{' '}
+                  <a
+                    href="https://datastep.com.au/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-white transition-colours"
+                  >
+                    Datastep
+                  </a>
+                </div>
               </div>
             </div>
             <div className="text-center md:text-right">
               <p className="text-gray-400 text-sm">
-                © 2025 Datastep. All rights reserved.
+                © 2025{' '}
+                <a
+                  href="https://datastep.com.au/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white transition-colours"
+                >
+                  Datastep
+                </a>
+                . All rights reserved.
               </p>
               <p className="text-gray-500 text-xs mt-1">
                 Advanced AI solutions for content creation
