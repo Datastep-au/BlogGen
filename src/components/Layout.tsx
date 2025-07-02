@@ -20,7 +20,7 @@ export default function Layout() {
                 <img 
                   src="/BlogGen_Pro_Logo.png" 
                   alt="BlogGen Pro" 
-                  className="h-12 w-auto"
+                  className="h-24 w-auto"
                 />
               </div>
               <div className="hidden sm:ml-8 sm:flex sm:space-x-8">

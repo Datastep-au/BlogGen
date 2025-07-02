@@ -97,12 +97,17 @@ export default function Dashboard() {
     }
   };
 
+  const handleStatusChange = () => {
+    loadArticles();
+  };
+
   const getStats = () => {
     const totalArticles = articles.length;
     const drafts = articles.filter(a => a.status === 'draft').length;
     const published = articles.filter(a => a.status === 'published').length;
+    const approved = articles.filter(a => a.status === 'approved').length;
 
-    return { totalArticles, drafts, published };
+    return { totalArticles, drafts, published, approved };
   };
 
   const stats = getStats();
@@ -123,7 +128,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
             <BarChart3 className="h-8 w-8 text-blue-600" />
@@ -145,6 +150,15 @@ export default function Dashboard() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
             <CheckCircle2 className="h-8 w-8 text-green-600" />
+            <div className="ml-4">
+              <p className="text-2xl font-bold text-gray-900">{stats.approved}</p>
+              <p className="text-sm text-gray-600">Approved</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center">
+            <CheckCircle2 className="h-8 w-8 text-purple-600" />
             <div className="ml-4">
               <p className="text-2xl font-bold text-gray-900">{stats.published}</p>
               <p className="text-sm text-gray-600">Published</p>
@@ -208,6 +222,7 @@ export default function Dashboard() {
               article={article}
               onView={handleViewArticle}
               onEdit={handleEditArticle}
+              onStatusChange={handleStatusChange}
             />
           ))}
         </div>

@@ -68,7 +68,7 @@ export default function AuthPage() {
             <img 
               src="/BlogGen_Pro_Logo_with_background.png" 
               alt="BlogGen Pro" 
-              className="h-32 w-auto"
+              className="h-64 w-auto"
             />
           </div>
           <p className="text-gray-600 text-lg">
