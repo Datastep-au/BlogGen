@@ -13,13 +13,13 @@ export default function LandingPage() {
               <img 
                 src="/BlogGen_Pro_Logo_with_background.png" 
                 alt="BlogGen Pro" 
-                className="h-12 w-auto"
+                className="h-24 w-auto"
               />
             </div>
             <div className="flex items-center space-x-4">
               <Link
                 to="/auth"
-                className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colors"
+                className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colours"
               >
                 Sign In
               </Link>
@@ -39,16 +39,18 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
           <div className="text-center">
             <div className="flex justify-center mb-8">
-              <div className="p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full">
-                <Sparkles className="h-12 w-12 text-white" />
-              </div>
+              <img 
+                src="/BlogGen_Pro_Logo_with_background copy copy copy.png" 
+                alt="BlogGen Pro" 
+                className="h-32 w-auto"
+              />
             </div>
             <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
               AI-Powered SEO
               <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Article Generator</span>
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
-              Create professional, SEO-optimized blog articles in seconds. Our advanced AI analyzes your topic and generates comprehensive content with proper structure, keywords, and meta descriptions.
+              Create professional, SEO-optimised blog articles in seconds. Our advanced AI analyses your topic and generates comprehensive content with proper structure, keywords, and meta descriptions.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
@@ -94,43 +96,43 @@ export default function LandingPage() {
               Everything You Need for SEO Success
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Our AI-powered platform provides all the tools you need to create high-quality, search-engine optimized content.
+              Our AI-powered platform provides all the tools you need to create high-quality, search-engine optimised content.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-8 rounded-2xl border border-blue-200 hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-6">
+            <div className="bg-white p-8 rounded-2xl border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all duration-300 group">
+              <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                 <Zap className="h-6 w-6 text-white" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-3">Lightning Fast Generation</h3>
               <p className="text-gray-600 leading-relaxed">
-                Generate comprehensive, SEO-optimized articles in under 30 seconds. No more writer's block or hours of research.
+                Generate comprehensive, SEO-optimised articles in under 30 seconds. No more writer's block or hours of research.
               </p>
             </div>
 
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-8 rounded-2xl border border-purple-200 hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center mb-6">
+            <div className="bg-white p-8 rounded-2xl border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all duration-300 group">
+              <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-purple-700 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                 <Target className="h-6 w-6 text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">SEO Optimized</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">SEO Optimised</h3>
               <p className="text-gray-600 leading-relaxed">
-                Every article includes optimized titles, meta descriptions, and naturally integrated keywords for better search rankings.
+                Every article includes optimised titles, meta descriptions, and naturally integrated keywords for better search rankings.
               </p>
             </div>
 
-            <div className="bg-gradient-to-br from-green-50 to-green-100 p-8 rounded-2xl border border-green-200 hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center mb-6">
+            <div className="bg-white p-8 rounded-2xl border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all duration-300 group">
+              <div className="w-12 h-12 bg-gradient-to-r from-green-600 to-green-700 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                 <Users className="h-6 w-6 text-white" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-3">Professional Quality</h3>
               <p className="text-gray-600 leading-relaxed">
-                AI-generated content that maintains a professional tone while being engaging and informative for your audience.
+                AI-generated content that maintains a professional tone whilst being engaging and informative for your audience.
               </p>
             </div>
 
-            <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-8 rounded-2xl border border-yellow-200 hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-yellow-600 rounded-lg flex items-center justify-center mb-6">
+            <div className="bg-white p-8 rounded-2xl border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all duration-300 group">
+              <div className="w-12 h-12 bg-gradient-to-r from-orange-600 to-orange-700 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                 <Sparkles className="h-6 w-6 text-white" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-3">Bulk Generation</h3>
@@ -139,18 +141,18 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 p-8 rounded-2xl border border-indigo-200 hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-indigo-600 rounded-lg flex items-center justify-center mb-6">
+            <div className="bg-white p-8 rounded-2xl border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all duration-300 group">
+              <div className="w-12 h-12 bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                 <CheckCircle className="h-6 w-6 text-white" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-3">Easy Editing</h3>
               <p className="text-gray-600 leading-relaxed">
-                Built-in editor allows you to refine and customize your articles. Copy content with one click for easy publishing.
+                Built-in editor allows you to refine and customise your articles. Copy content with one click for easy publishing.
               </p>
             </div>
 
-            <div className="bg-gradient-to-br from-pink-50 to-pink-100 p-8 rounded-2xl border border-pink-200 hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-pink-600 rounded-lg flex items-center justify-center mb-6">
+            <div className="bg-white p-8 rounded-2xl border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all duration-300 group">
+              <div className="w-12 h-12 bg-gradient-to-r from-pink-600 to-pink-700 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                 <Star className="h-6 w-6 text-white" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-3">Status Management</h3>
@@ -191,7 +193,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-3">AI Generates Content</h3>
               <p className="text-gray-600 leading-relaxed">
-                Our advanced AI creates a comprehensive article with proper structure, SEO optimization, and engaging content in seconds.
+                Our advanced AI creates a comprehensive article with proper structure, SEO optimisation, and engaging content in seconds.
               </p>
             </div>
 
@@ -215,7 +217,7 @@ export default function LandingPage() {
             Ready to Transform Your Content Creation?
           </h2>
           <p className="text-xl text-blue-100 mb-8 leading-relaxed">
-            Join thousands of content creators who are already using BlogGen Pro to create high-quality, SEO-optimized articles in minutes, not hours.
+            Join thousands of content creators who are already using BlogGen Pro to create high-quality, SEO-optimised articles in minutes, not hours.
           </p>
           <Link
             to="/auth"
@@ -238,7 +240,7 @@ export default function LandingPage() {
               <img 
                 src="/BlogGen_Pro_Logo_with_background.png" 
                 alt="BlogGen Pro" 
-                className="h-10 w-auto mr-3"
+                className="h-20 w-auto mr-3"
               />
               <div>
                 <div className="text-lg font-semibold">BlogGen Pro</div>
