@@ -1,10 +1,11 @@
 import React from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { BarChart3, PlusCircle, LogOut, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Layout() {
   const { user, signOut } = useAuth();
+  const location = useLocation();
 
   const handleSignOut = async () => {
     await signOut();
@@ -26,6 +27,7 @@ export default function Layout() {
               <div className="hidden sm:ml-8 sm:flex sm:space-x-8">
                 <NavLink
                   to="/app"
+                  end
                   className={({ isActive }) =>
                     `inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${
                       isActive

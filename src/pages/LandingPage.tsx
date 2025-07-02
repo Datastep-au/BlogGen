@@ -1,8 +1,14 @@
-import React from 'react';
-import { ArrowRight, Sparkles, Zap, Target, Users, CheckCircle, Star } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowRight, Sparkles, Zap, Target, Users, CheckCircle, Star, Play } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import YouTubeModal from '../components/YouTubeModal';
 
 export default function LandingPage() {
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+
+  const openVideoModal = () => setIsVideoModalOpen(true);
+  const closeVideoModal = () => setIsVideoModalOpen(false);
+
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
@@ -68,7 +74,11 @@ export default function LandingPage() {
                 Start Creating Articles
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
-              <button className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-lg text-lg font-semibold hover:border-gray-400 hover:bg-gray-50 transition-all duration-200">
+              <button 
+                onClick={openVideoModal}
+                className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-lg text-lg font-semibold hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 flex items-center justify-center"
+              >
+                <Play className="mr-2 h-5 w-5" />
                 Watch Demo
               </button>
             </div>
@@ -285,6 +295,13 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* YouTube Modal */}
+      <YouTubeModal
+        isOpen={isVideoModalOpen}
+        onClose={closeVideoModal}
+        videoId="mQBpeURNsLc"
+      />
     </div>
   );
 }
