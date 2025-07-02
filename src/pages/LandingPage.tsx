@@ -11,7 +11,7 @@ export default function LandingPage() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <img 
-                src="/BlogGen_Pro_Logo_with_background.png" 
+                src="/BlogGen_Pro_Logo.png" 
                 alt="BlogGen Pro" 
                 className="h-24 w-auto"
               />
@@ -40,9 +40,9 @@ export default function LandingPage() {
           <div className="text-center">
             <div className="flex justify-center mb-8">
               <img 
-                src="/BlogGen_Pro_Logo_with_background copy copy copy.png" 
+                src="/BlogGen_Pro_Logo_with_background.png" 
                 alt="BlogGen Pro" 
-                className="h-32 w-auto"
+                className="h-64 w-auto"
               />
             </div>
             <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
@@ -238,7 +238,7 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center mb-4 md:mb-0">
               <img 
-                src="/BlogGen_Pro_Logo_with_background.png" 
+                src="/BlogGen_Pro_Logo.png" 
                 alt="BlogGen Pro" 
                 className="h-20 w-auto mr-3"
               />
