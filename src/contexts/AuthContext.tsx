@@ -28,6 +28,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Handle OAuth redirect hash fragments
+    const handleAuthRedirect = async () => {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+      
+      if (accessToken) {
+        console.log('Found OAuth tokens in URL hash, processing...');
+        try {
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || ''
+          });
+          
+          if (error) {
+            console.error('Error setting session from OAuth redirect:', error);
+          } else {
+            console.log('Successfully set session from OAuth redirect');
+            // Clean up the URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        } catch (err) {
+          console.error('Exception handling OAuth redirect:', err);
+        }
+      }
+    };
+
+    // Handle OAuth redirect first
+    handleAuthRedirect();
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
