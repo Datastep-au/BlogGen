@@ -25,7 +25,7 @@ export default function Layout() {
               </div>
               <div className="hidden sm:ml-8 sm:flex sm:space-x-8">
                 <NavLink
-                  to="/"
+                  to="/app"
                   className={({ isActive }) =>
                     `inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${
                       isActive
@@ -38,7 +38,7 @@ export default function Layout() {
                   Generate
                 </NavLink>
                 <NavLink
-                  to="/dashboard"
+                  to="/app/dashboard"
                   className={({ isActive }) =>
                     `inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${
                       isActive
