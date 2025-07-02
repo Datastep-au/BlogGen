@@ -59,12 +59,13 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     
     // Create Supabase client with service role key for database operations
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
     
     // Create another client with the user's token for auth verification
-    const supabaseUser = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
         headers: { Authorization: authHeader },
       },
@@ -74,7 +75,76 @@ Deno.serve(async (req) => {
     const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
     if (userError || !user) {
       console.error('User authentication error:', userError);
-      throw new Error('User not authenticated. Please sign in and try again.');
+      console.error('Auth header:', authHeader);
+      console.error('Supabase URL:', supabaseUrl);
+      console.error('Anon Key exists:', !!supabaseAnonKey);
+      
+      // Try to get user with different approach
+      const token = authHeader.replace('Bearer ', '');
+      const { data: userData, error: userError2 } = await supabaseAdmin.auth.getUser(token);
+      
+      if (userError2 || !userData.user) {
+        console.error('Alternative auth check failed:', userError2);
+        throw new Error('User not authenticated. Please sign out and sign in again.');
+      }
+      
+      // Use the user from admin client
+      console.log(`Authenticated user via admin client: ${userData.user.email} (${userData.user.id})`);
+      
+      // Determine topics to process
+      const topicsToProcess = bulk_topics || [topic!];
+      const generatedArticles: GeneratedArticle[] = [];
+      const errors: string[] = [];
+
+      // Generate articles for each topic
+      for (const currentTopic of topicsToProcess) {
+        try {
+          console.log(`Generating article for topic: ${currentTopic}`);
+          const article = await generateArticle(currentTopic, openaiApiKey);
+          generatedArticles.push(article);
+
+          // Save to database with user_id using admin client
+          const { data: savedArticle, error: dbError } = await supabaseAdmin
+            .from('articles')
+            .insert({
+              user_id: userData.user.id,
+              topic: currentTopic,
+              title: article.title,
+              content: article.content,
+              meta_description: article.meta_description,
+              keywords: article.keywords,
+              status: 'draft'
+            })
+            .select()
+            .single();
+
+          if (dbError) {
+            console.error('Database error:', dbError);
+            errors.push(`Failed to save article for "${currentTopic}": ${dbError.message}`);
+            continue;
+          }
+
+          console.log(`Article saved to database: ${savedArticle.id}`);
+
+        } catch (error) {
+          console.error(`Error generating article for topic "${currentTopic}":`, error);
+          errors.push(`Failed to generate article for "${currentTopic}": ${error.message}`);
+          // Continue with other topics
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          generated_count: generatedArticles.length,
+          total_requested: topicsToProcess.length,
+          articles: generatedArticles,
+          errors: errors.length > 0 ? errors : undefined
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     console.log(`Authenticated user: ${user.email} (${user.id})`);

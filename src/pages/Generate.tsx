@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
 import TopicForm from '../components/TopicForm';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Generate() {
+  const { user } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStatus, setGenerationStatus] = useState<{
     success: boolean;
@@ -15,11 +17,20 @@ export default function Generate() {
     topic?: string; 
     bulk_topics?: string[];
   }) => {
+    if (!user) {
+      setGenerationStatus({
+        success: false,
+        message: 'Please sign in to generate articles'
+      });
+      return;
+    }
+
     setIsGenerating(true);
     setGenerationStatus(null);
 
     try {
       console.log('Submitting article generation request:', data);
+      console.log('Current user:', user);
       
       // Check if Supabase URL and key are available
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -29,16 +40,22 @@ export default function Generate() {
         throw new Error('Supabase configuration is missing. Please check your environment variables.');
       }
 
+      // Get the current session to ensure we have a valid token
+      const { data: { session } } = await import('../lib/supabase').then(m => m.supabase.auth.getSession());
+      
+      if (!session?.access_token) {
+        throw new Error('No valid session found. Please sign out and sign in again.');
+      }
+
       const apiUrl = `${supabaseUrl}/functions/v1/generate-article`;
       const headers = {
-        'Authorization': `Bearer ${supabaseAnonKey}`,
+        'Authorization': `Bearer ${session.access_token}`,
         'Content-Type': 'application/json',
         'apikey': supabaseAnonKey,
       };
 
       console.log('Making request to:', apiUrl);
-      console.log('Request headers:', headers);
-      console.log('Request body:', JSON.stringify(data));
+      console.log('Using session token:', session.access_token.substring(0, 20) + '...');
 
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -47,7 +64,6 @@ export default function Generate() {
       });
 
       console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorText = await response.text();
