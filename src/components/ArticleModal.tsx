@@ -52,8 +52,8 @@ export default function ArticleModal({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
             {mode === 'view' ? 'View Article' : 'Edit Article'}
           </h2>
           <button
@@ -64,7 +64,7 @@ export default function ArticleModal({
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+        <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
           <div className="space-y-6">
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -90,10 +90,10 @@ export default function ArticleModal({
                   type="text"
                   value={editedArticle.title}
                   onChange={(e) => updateField('title', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                 />
               ) : (
-                <h1 className="text-2xl font-bold text-gray-900">{article.title}</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{article.title}</h1>
               )}
             </div>
 
@@ -121,10 +121,10 @@ export default function ArticleModal({
                   value={editedArticle.meta_description}
                   onChange={(e) => updateField('meta_description', e.target.value)}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 />
               ) : (
-                <p className="text-gray-600 bg-gray-50 p-3 rounded-lg">{article.meta_description}</p>
+                <p className="text-gray-600 bg-gray-50 p-3 rounded-lg text-sm">{article.meta_description}</p>
               )}
             </div>
 
@@ -152,7 +152,7 @@ export default function ArticleModal({
                   type="text"
                   value={editedArticle.keywords.join(', ')}
                   onChange={(e) => updateField('keywords', e.target.value.split(',').map(k => k.trim()))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                   placeholder="keyword1, keyword2, keyword3"
                 />
               ) : (
@@ -193,11 +193,11 @@ export default function ArticleModal({
                   value={editedArticle.content}
                   onChange={(e) => updateField('content', e.target.value)}
                   rows={20}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-xs sm:text-sm"
                 />
               ) : (
-                <div className="prose max-w-none bg-gray-50 p-4 rounded-lg">
-                  <pre className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed font-sans">
+                <div className="prose max-w-none bg-gray-50 p-3 sm:p-4 rounded-lg">
+                  <pre className="whitespace-pre-wrap text-xs sm:text-sm text-gray-700 leading-relaxed font-sans">
                     {article.content}
                   </pre>
                 </div>
@@ -205,16 +205,16 @@ export default function ArticleModal({
             </div>
 
             {mode === 'edit' && (
-              <div className="flex justify-end space-x-3 pt-4 border-t">
+              <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-4 border-t">
                 <button
                   onClick={onClose}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  className="w-full sm:w-auto px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
-                  className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors flex items-center"
+                  className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors flex items-center justify-center"
                 >
                   <Save className="h-4 w-4 mr-2" />
                   Save Changes

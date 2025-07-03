@@ -121,64 +121,64 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
         <p className="text-gray-600">Manage your SEO articles and track their performance</p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
           <div className="flex items-center">
-            <BarChart3 className="h-8 w-8 text-blue-600" />
-            <div className="ml-4">
-              <p className="text-2xl font-bold text-gray-900">{stats.totalArticles}</p>
-              <p className="text-sm text-gray-600">Total Articles</p>
+            <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+            <div className="ml-3 sm:ml-4">
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.totalArticles}</p>
+              <p className="text-xs sm:text-sm text-gray-600">Total Articles</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
           <div className="flex items-center">
-            <TrendingUp className="h-8 w-8 text-yellow-600" />
-            <div className="ml-4">
-              <p className="text-2xl font-bold text-gray-900">{stats.drafts}</p>
-              <p className="text-sm text-gray-600">Drafts</p>
+            <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-600" />
+            <div className="ml-3 sm:ml-4">
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.drafts}</p>
+              <p className="text-xs sm:text-sm text-gray-600">Drafts</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
           <div className="flex items-center">
-            <CheckCircle2 className="h-8 w-8 text-green-600" />
-            <div className="ml-4">
-              <p className="text-2xl font-bold text-gray-900">{stats.approved}</p>
-              <p className="text-sm text-gray-600">Approved</p>
+            <CheckCircle2 className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
+            <div className="ml-3 sm:ml-4">
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.approved}</p>
+              <p className="text-xs sm:text-sm text-gray-600">Approved</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
           <div className="flex items-center">
-            <CheckCircle2 className="h-8 w-8 text-purple-600" />
-            <div className="ml-4">
-              <p className="text-2xl font-bold text-gray-900">{stats.published}</p>
-              <p className="text-sm text-gray-600">Published</p>
+            <CheckCircle2 className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
+            <div className="ml-3 sm:ml-4">
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.published}</p>
+              <p className="text-xs sm:text-sm text-gray-600">Published</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-          <div className="flex items-center space-x-4">
-            <div className="relative">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+        <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center sm:space-x-4">
+            <div className="relative flex-1 sm:flex-none">
               <Search className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Search articles..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full sm:w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
             </div>
             <div className="relative">
@@ -186,7 +186,7 @@ export default function Dashboard() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+                className="w-full sm:w-auto pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white text-sm"
               >
                 <option value="all">All Status</option>
                 <option value="draft">Draft</option>
@@ -196,7 +196,7 @@ export default function Dashboard() {
               </select>
             </div>
           </div>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 text-center sm:text-right">
             Showing {filteredArticles.length} of {articles.length} articles
           </p>
         </div>
@@ -215,7 +215,7 @@ export default function Dashboard() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
           {filteredArticles.map((article) => (
             <ArticleCard
               key={article.id}

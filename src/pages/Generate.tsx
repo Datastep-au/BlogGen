@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Sparkles, CheckCircle2, AlertCircle, Calendar } from 'lucide-react';
 import TopicForm from '../components/TopicForm';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -7,12 +7,46 @@ import { supabase } from '../lib/supabase';
 export default function Generate() {
   const { user } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [monthlyUsage, setMonthlyUsage] = useState({ count: 0, limit: 10 });
   const [generationStatus, setGenerationStatus] = useState<{
     success: boolean;
     message: string;
     count?: number;
     errors?: string[];
   } | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      checkMonthlyUsage();
+    }
+  }, [user]);
+
+  const checkMonthlyUsage = async () => {
+    if (!user) return;
+
+    try {
+      // Get current month's articles
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+      const { data, error } = await supabase
+        .from('articles')
+        .select('id')
+        .eq('user_id', user.id)
+        .gte('created_at', startOfMonth.toISOString())
+        .lte('created_at', endOfMonth.toISOString());
+
+      if (error) throw error;
+
+      setMonthlyUsage({
+        count: data?.length || 0,
+        limit: 10
+      });
+    } catch (error) {
+      console.error('Error checking monthly usage:', error);
+    }
+  };
 
   const handleTopicSubmit = async (data: { 
     topic?: string; 
@@ -22,6 +56,16 @@ export default function Generate() {
       setGenerationStatus({
         success: false,
         message: 'Please sign in to generate articles'
+      });
+      return;
+    }
+
+    // Check if user has reached monthly limit
+    const topicsToGenerate = data.bulk_topics?.length || 1;
+    if (monthlyUsage.count + topicsToGenerate > monthlyUsage.limit) {
+      setGenerationStatus({
+        success: false,
+        message: `Monthly limit exceeded. You can generate ${monthlyUsage.limit - monthlyUsage.count} more articles this month. Your limit resets on the 1st of each month.`
       });
       return;
     }
@@ -95,6 +139,9 @@ export default function Generate() {
         errors: result.errors
       });
 
+      // Refresh monthly usage
+      await checkMonthlyUsage();
+
     } catch (error) {
       console.error('Error generating article:', error);
       
@@ -115,20 +162,58 @@ export default function Generate() {
     }
   };
 
+  const remainingArticles = monthlyUsage.limit - monthlyUsage.count;
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <div className="text-center">
         <div className="flex items-center justify-center mb-4">
           <div className="p-3 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full">
-            <Sparkles className="h-8 w-8 text-white" />
+            <Sparkles className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
           </div>
         </div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
           AI-Powered SEO Article Generator
         </h1>
-        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+        <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
           Create professional, SEO-optimized blog articles in seconds. Our AI analyzes your topic and generates comprehensive content with proper structure, keywords, and meta descriptions.
         </p>
+      </div>
+
+      {/* Monthly Usage Display */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center">
+            <Calendar className="h-5 w-5 text-blue-600 mr-2" />
+            <h3 className="text-lg font-semibold text-gray-900">Monthly Usage</h3>
+          </div>
+          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+            remainingArticles > 5 ? 'bg-green-100 text-green-800' :
+            remainingArticles > 2 ? 'bg-yellow-100 text-yellow-800' :
+            'bg-red-100 text-red-800'
+          }`}>
+            {remainingArticles} remaining
+          </span>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+          <div 
+            className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full transition-all duration-300"
+            style={{ width: `${(monthlyUsage.count / monthlyUsage.limit) * 100}%` }}
+          />
+        </div>
+        <p className="text-sm text-gray-600">
+          {monthlyUsage.count} of {monthlyUsage.limit} articles used this month
+        </p>
+        {remainingArticles <= 2 && remainingArticles > 0 && (
+          <p className="text-sm text-yellow-600 mt-2">
+            ⚠️ You're approaching your monthly limit. Your usage resets on the 1st of each month.
+          </p>
+        )}
+        {remainingArticles === 0 && (
+          <p className="text-sm text-red-600 mt-2">
+            🚫 You've reached your monthly limit. Your usage will reset on the 1st of next month.
+          </p>
+        )}
       </div>
 
       {/* Generation Status */}
@@ -171,10 +256,14 @@ export default function Generate() {
       )}
 
       <div className="max-w-2xl mx-auto">
-        <TopicForm onSubmit={handleTopicSubmit} isLoading={isGenerating} />
+        <TopicForm 
+          onSubmit={handleTopicSubmit} 
+          isLoading={isGenerating}
+          remainingArticles={remainingArticles}
+        />
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">What Our AI Does</h3>
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-4">
