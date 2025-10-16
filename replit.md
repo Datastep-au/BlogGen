@@ -1,116 +1,105 @@
-# Overview
+# BlogGen - AI-Powered Blog Article Generator
 
-BlogGen Pro is an SEO-optimized blog article generator that leverages AI to create high-quality blog content. The application allows users to generate single or bulk articles based on topics, manage generated content through a dashboard, and track monthly usage limits. Built as a modern web application, it provides an intuitive interface for content creators to streamline their blog writing workflow.
+## Overview
 
-# User Preferences
+BlogGen is a full-stack web application that helps users generate SEO-optimized blog articles using OpenAI's GPT-4o model. The application features a React frontend with modern UI components, an Express.js backend, and uses PostgreSQL with Drizzle ORM for data persistence. Users can generate single articles or bulk generate multiple articles at once, with built-in usage tracking and monthly limits.
+
+## User Preferences
 
 Preferred communication style: Simple, everyday language.
 
-# System Architecture
+## System Architecture
 
-## Frontend Architecture
+### Frontend Architecture
+- **Framework**: React 18 with TypeScript
+- **Routing**: Wouter for client-side routing
+- **State Management**: TanStack Query for server state, React Context for authentication
+- **UI Framework**: shadcn/ui components built on Radix UI primitives
+- **Styling**: Tailwind CSS with CSS variables for theming
+- **Build Tool**: Vite with custom configuration for development and production
 
-**Framework & Build System**
-- React 18 with TypeScript for type-safe component development
-- Vite as the build tool and development server for fast hot module replacement
-- React Router DOM v6 for client-side routing and navigation
-- TailwindCSS for utility-first styling with PostCSS processing
+### Backend Architecture
+- **Framework**: Express.js with TypeScript
+- **API Design**: RESTful API with JSON responses
+- **Request Processing**: Built-in middleware for logging, JSON parsing, and error handling
+- **Development Server**: Custom Vite integration for hot module replacement
 
-**Routing Structure**
-- Public routes: Landing page (`/`) and authentication page (`/auth`)
-- Protected routes: Application dashboard and generation interface under `/app/*`
-- Auth guard component wraps protected routes to enforce authentication
-- Automatic redirect logic for authenticated/unauthenticated users
+### Authentication System
+- **Provider**: Supabase Auth
+- **Strategy**: JWT-based authentication with session management
+- **Integration**: Custom React context provider with persistent state
+- **Protected Routes**: Route guards for authenticated-only content
 
-**State Management**
-- React Context API for authentication state (AuthContext)
-- Local component state with React hooks for UI state
-- No external state management library (Redux/MobX) used
+## Key Components
 
-**Component Architecture**
-- Functional components with hooks throughout
-- Reusable UI components: ArticleCard, ArticleModal, TopicForm, Layout
-- Specialized components: AuthGuard for route protection, YouTubeModal for video playback
-- Context providers wrap the application for global state access
+### Database Schema (Drizzle ORM)
+- **Users Table**: Stores user profiles with email, name, and avatar
+- **Articles Table**: Stores generated articles with content, metadata, and SEO fields
+- **Usage Tracking Table**: Monitors monthly article generation limits per user
 
-## Backend Architecture
+### API Endpoints
+- `POST /api/generate-article`: Generate single or bulk articles
+- Built-in usage validation and limit enforcement
+- Error handling with structured JSON responses
 
-**Authentication & User Management**
-- Supabase Auth handles user authentication with email/password and Google OAuth
-- Session management through Supabase client with automatic token refresh
-- Auth state synchronized between Supabase and React Context
-- OAuth redirect handling processes access tokens from URL fragments
+### Storage Layer
+- **Interface**: IStorage abstraction for data operations
+- **Implementation**: In-memory storage (MemStorage) for development
+- **Database Ready**: Configured for PostgreSQL with Neon serverless
 
-**Serverless Functions (Supabase Edge Functions)**
-- `generate-article`: AI-powered article generation using OpenAI GPT-4 Turbo
-  - Supports single topic and bulk topic generation
-  - Returns structured JSON with title, content, meta description, and keywords
-  - Robust JSON parsing to handle markdown code blocks in responses
-- `schedule-publisher`: Cron-based function to publish scheduled articles
-  - Checks for overdue scheduled articles periodically
-  - Updates article status from 'scheduled' to 'published'
-- Test functions for Notion integration (legacy, not actively used)
+### Article Generation
+- **AI Model**: OpenAI GPT-4o for content generation
+- **Features**: SEO optimization, keyword integration, structured content
+- **Custom Guidelines**: AI_VISIBILITY_PROMPT environment variable for custom writing guidelines
+- **Output**: Title, content, meta description, keywords, and word count
 
-**API Integration**
-- OpenAI API for content generation (via Edge Functions)
-- Supabase REST API for database operations
-- CORS configuration shared across all Edge Functions
+### UI Components
+- **TopicForm**: Single and bulk article generation interface
+- **ArticleEditor**: Rich editing interface for generated content
+- **Dashboard**: Article management and statistics
+- **AuthGuard**: Route protection component
 
-## Data Storage
+## Data Flow
 
-**Supabase (PostgreSQL)**
-- `articles` table: Stores generated blog articles
-  - Fields: id, user_id, topic, title, content, meta_description, keywords, status, scheduled_date, created_at, updated_at
-  - Status values: 'draft', 'approved', 'scheduled', 'published'
-  - User-specific article queries with user_id foreign key
-- Row Level Security (RLS) expected for multi-tenant data isolation
-- Real-time subscriptions not currently implemented but supported by Supabase
-
-**Usage Tracking**
-- Monthly article generation limits enforced client-side
-- Usage calculated by counting articles per user per calendar month
-- Default limit: 10 articles per month per user
-
-## Authentication & Authorization
-
-**Authentication Flows**
-- Email/password authentication with email confirmation
-- Google OAuth with redirect-based flow
-- Session tokens stored in browser (httpOnly cookies via Supabase)
-- Automatic session refresh handled by Supabase client
-
-**Authorization Pattern**
-- Route-level protection using AuthGuard component
-- User ID passed with all database operations for data scoping
-- Server-side user verification in Edge Functions via auth header
-- No role-based access control (single user role)
+1. **User Authentication**: Supabase handles login/signup, stores JWT in session
+2. **Article Generation**: User submits topics → API validates limits → OpenAI generates content → Database stores results
+3. **Content Management**: Dashboard fetches user articles → Display with editing capabilities → Updates saved to database
+4. **Usage Tracking**: Monitor monthly generation counts → Enforce 10-article limit → Reset monthly
 
 ## External Dependencies
 
-**Core Infrastructure**
-- **Supabase**: Backend-as-a-Service providing PostgreSQL database, authentication, and serverless functions
-  - Environment variables: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
-  - Service role key used in Edge Functions for admin operations
+### Core Services
+- **OpenAI API**: GPT-4o model for article generation with custom AI_VISIBILITY_PROMPT guidelines
+- **Supabase**: Authentication, user management
+- **Neon Database**: PostgreSQL hosting (configured but not required for development)
 
-**AI & Content Generation**
-- **OpenAI GPT-4 Turbo**: Article generation via API
-  - Accessed through Supabase Edge Functions to secure API keys
-  - Structured prompts for SEO-optimized content generation
+### Development Tools
+- **Replit Integration**: Hot reload, error overlay, development banner
+- **TypeScript**: Full type safety across frontend and backend
+- **ESM Modules**: Modern JavaScript module system
 
-**UI & Styling**
-- **TailwindCSS**: Utility-first CSS framework
-- **Lucide React**: Icon library for consistent iconography
-- **date-fns**: Date formatting and manipulation utility
+### UI Libraries
+- **Radix UI**: Accessible component primitives
+- **Tailwind CSS**: Utility-first styling
+- **Lucide Icons**: Icon set for UI elements
+- **date-fns**: Date manipulation utilities
 
-**Development Tools**
-- **Vite**: Frontend build tool and dev server
-- **TypeScript**: Static type checking (strict mode enabled)
-- **ESLint**: Code linting with React-specific plugins
+## Deployment Strategy
 
-**Third-Party Services (Legacy/Unused)**
-- Notion API integration present in backup files but not active in current version
-- Test functions exist for Notion connections but aren't used in the main application flow
+### Build Process
+- **Frontend**: Vite builds React app to `dist/public`
+- **Backend**: esbuild bundles Express server to `dist/index.js`
+- **Assets**: Static files served from build directory
 
-**Authentication Provider**
-- Google OAuth for social authentication (configured through Supabase)
-- Requires OAuth client ID/secret configuration in Supabase dashboard
+### Environment Configuration
+- **Development**: Uses memory storage, Vite dev server
+- **Production**: Requires DATABASE_URL, OPENAI_API_KEY, AI_VISIBILITY_PROMPT, Supabase credentials
+- **Database**: Drizzle migrations in `./migrations` directory
+
+### Deployment Commands
+- `npm run dev`: Development server with hot reload
+- `npm run build`: Production build
+- `npm run start`: Production server
+- `npm run db:push`: Apply database schema changes
+
+The application is designed for scalability with a clean separation between frontend and backend, making it easy to deploy to various hosting platforms while maintaining development efficiency.

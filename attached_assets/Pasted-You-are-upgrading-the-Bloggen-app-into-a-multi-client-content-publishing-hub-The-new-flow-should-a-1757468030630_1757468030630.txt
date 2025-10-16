@@ -1,0 +1,94 @@
+You are upgrading the Bloggen app into a multi-client content publishing hub. 
+The new flow should allow creating/managing a dedicated GitHub content repo per client 
+(under the `Datastep-au` account) and writing scheduled blog posts into it. 
+Clients will NOT self-provision repos. Only the Admin can onboard them.
+
+## Core Requirements
+
+1. **GitHub App Integration**
+   - Implement GitHub App or fine-grained PAT support.
+   - Bloggen must be able to:
+     • Create a new private repo under the GitHub account `Datastep-au` 
+       (naming convention: `clientX-blog-content`).
+     • Initialize the repo with the following structure:
+       /posts/
+       /images/
+       /drafts/
+       blog.json  (for index cache)
+     • Commit a sample `hello-world.mdx` post with front-matter.
+
+2. **Admin-Controlled Client Onboarding Flow**
+   - Public self-signup is disabled. 
+   - Only Admin(s) can create new client workspaces.
+   - Add an **Admin Panel UI** in Bloggen with actions:
+     • “Add New Client” → prompts for client name, slugify into repo name.
+     • Call GitHub API `POST /user/repos` to create repo inside `Datastep-au` account.
+     • Store the repo URL + client mapping in Bloggen DB (Supabase).
+   - Admin can then invite client users by email. 
+   - Show repo creation success + repo link in Admin panel.
+
+3. **Client Access & Authentication**
+   - Clients do not sign up freely.
+   - Admin invites them → they get login credentials or magic link.
+   - Clients see only their own workspace (posts + media linked to their repo).
+   - Roles:
+     • Admin → full system access, repo provisioning.
+     • Client Editor → can create/edit/schedule posts for their repo.
+     • Client Viewer → read-only access (optional, future).
+
+4. **Content Creation Flow (AI-Enhanced)**
+   - Bloggen already supports manual content creation. Upgrade it with AI features:
+     • Integrate GPT-5 API for automatic blog draft generation.
+     • Input fields: Topic/Prompt, Target Audience, Tone/Style, Keywords/SEO.
+     • GPT-5 returns: Title, Meta description, Markdown/MDX body, Tags, Hero image description.
+     • User can review and edit before saving.
+
+   - Image options:
+     • Auto-generate hero image using available image generation tool (Replit decides the best integration, e.g., OpenAI Images API or its own tool).
+     • OR allow user to upload their own image.
+     • Save image under /images/ in the repo, and reference in post front-matter.
+
+   - Committing workflow:
+     • Save post as `.mdx` with proper front-matter (title, slug, publish_at, tags, hero, description).
+     • Commit via GitHub API to client’s content repo under /posts/.
+     • Save image file under /images/ in same repo.
+
+5. **Scheduling Logic**
+   - Every post has `publish_at` in front-matter.
+   - Bloggen commits all posts immediately into repo, regardless of publish date.
+   - The client website workflow decides when to publish based on `publish_at`.
+   - (Optional) Add Bloggen endpoint to generate JSON feed for sites.
+
+6. **Database / Multi-Tenant Setup**
+   - Supabase schema:
+     Table `clients`: id, name, repo_url, github_installation_id.
+     Table `users`: id, email, role (admin, client_editor, client_viewer), client_id (nullable for admins).
+     Table `posts`: id, client_id, title, slug, status, publish_at, generation_mode (ai/manual/mixed).
+   - Enforce RLS (Row-Level Security) so clients only see their own workspace.
+
+7. **Security**
+   - Store GitHub tokens securely.
+   - Use GitHub App installations for per-repo write access, not global access.
+   - Ensure tokens are refreshed/rotated as needed.
+
+8. **Developer Ergonomics**
+   - Add scripts/utilities:
+     `create-repo.ts` → utility for Admin to create client repo with base structure.
+     `commit-post.ts` → utility to write post to repo.
+   - Clear error handling for GitHub API failures (e.g., insufficient permissions, rate limits).
+
+## Deliverables
+- Updated Bloggen codebase (TypeScript, Supabase, Vite).
+- `services/github.ts` with functions:
+  • `createClientRepo(name: string)` → creates repo inside `Datastep-au`.
+  • `commitPost(clientId: string, post: PostPayload)` → commits post to correct repo.
+- Updated Admin Panel UI for client onboarding and user invites.
+- Updated Post Editor with AI draft generation and image options.
+- Database migration for `clients`, `users`, and `posts` tables.
+
+## Goal
+When I (as Admin) log into Bloggen and click **“Add Client”**, a new GitHub repo is created automatically under `Datastep-au` with the standard structure.  
+I can invite client users (editors) to access only their workspace.  
+Clients can then log into Bloggen and generate AI-assisted posts with GPT-5, auto-generate or upload images, and schedule them.  
+Bloggen commits everything into their repo.  
+The client website (via GitHub Actions) pulls from that repo and publishes scheduled posts.

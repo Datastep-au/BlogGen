@@ -1,5 +1,0 @@
-# Handle client-side routing
-/*    /index.html   200
-
-# Handle OAuth redirects specifically
-/app#*    /app   200
