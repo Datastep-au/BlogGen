@@ -11,6 +11,12 @@ export const generationModeEnum = pgEnum("generation_mode", ["ai", "manual", "mi
 // Enum for article status
 export const articleStatusEnum = pgEnum("article_status", ["draft", "scheduled", "published"]);
 
+// Enum for post status (headless CMS)
+export const postStatusEnum = pgEnum("post_status", ["draft", "scheduled", "published", "archived"]);
+
+// Enum for webhook event types
+export const webhookEventEnum = pgEnum("webhook_event", ["post_published", "post_updated", "post_deleted"]);
+
 // Clients table for multi-tenancy
 export const clients = pgTable("clients", {
   id: serial("id").primaryKey(),
@@ -75,6 +81,104 @@ export const user_repos = pgTable("user_repos", {
   updated_at: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// ==================== HEADLESS CMS TABLES ====================
+
+// Sites table for multi-tenant headless CMS
+export const sites = pgTable("sites", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  client_id: integer("client_id").references(() => clients.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  domain: text("domain"), // e.g. example.com
+  api_key_hash: text("api_key_hash").notNull(), // bcrypt hash of API key
+  is_active: boolean("is_active").default(true).notNull(),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Posts table for headless CMS
+export const posts = pgTable("posts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  site_id: uuid("site_id").notNull().references(() => sites.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  slug: text("slug").notNull(),
+  excerpt: text("excerpt"),
+  body_md: text("body_md").notNull(), // Markdown content
+  body_html: text("body_html"), // Cached HTML render
+  tags: text("tags").array().default([]),
+  cover_image_url: text("cover_image_url"),
+  meta_title: text("meta_title"),
+  meta_description: text("meta_description"),
+  og_image_url: text("og_image_url"),
+  canonical_url: text("canonical_url"),
+  noindex: boolean("noindex").default(false),
+  status: postStatusEnum("status").default("draft").notNull(),
+  published_at: timestamp("published_at"),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+  content_hash: uuid("content_hash").notNull(), // Deterministic hash of content
+}, (table) => ({
+  siteSlugUnique: { 
+    name: "posts_site_id_slug_unique",
+    columns: [table.site_id, table.slug]
+  }
+}));
+
+// Post slugs history for redirects
+export const post_slugs = pgTable("post_slugs", {
+  id: serial("id").primaryKey(),
+  post_id: uuid("post_id").notNull().references(() => posts.id, { onDelete: "cascade" }),
+  slug: text("slug").notNull(),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Assets table for images and media
+export const assets = pgTable("assets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  site_id: uuid("site_id").notNull().references(() => sites.id, { onDelete: "cascade" }),
+  post_id: uuid("post_id").references(() => posts.id, { onDelete: "set null" }),
+  url: text("url").notNull(),
+  alt: text("alt"),
+  width: integer("width"),
+  height: integer("height"),
+  role: text("role"), // 'cover' | 'inline' | 'og' | etc.
+  created_at: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Webhooks table
+export const webhooks = pgTable("webhooks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  site_id: uuid("site_id").notNull().references(() => sites.id, { onDelete: "cascade" }),
+  target_url: text("target_url").notNull(),
+  secret: text("secret").notNull(),
+  is_active: boolean("is_active").default(true).notNull(),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Webhook delivery logs
+export const webhook_delivery_logs = pgTable("webhook_delivery_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  webhook_id: uuid("webhook_id").notNull().references(() => webhooks.id, { onDelete: "cascade" }),
+  post_id: uuid("post_id").references(() => posts.id, { onDelete: "set null" }),
+  event: webhookEventEnum("event").notNull(),
+  status_code: integer("status_code"),
+  response_body: text("response_body"),
+  error: text("error"),
+  attempt: integer("attempt").default(1).notNull(),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Scheduled jobs table (for webhook retries and scheduled posts)
+export const scheduled_jobs = pgTable("scheduled_jobs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  job_type: text("job_type").notNull(), // 'webhook_delivery' | 'publish_scheduled_post'
+  payload: json("payload").notNull(), // JSON payload for the job
+  scheduled_for: timestamp("scheduled_for").notNull(),
+  attempts: integer("attempts").default(0).notNull(),
+  max_attempts: integer("max_attempts").default(5).notNull(),
+  last_error: text("last_error"),
+  completed_at: timestamp("completed_at"),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertClientSchema = createInsertSchema(clients).omit({
   id: true,
   created_at: true,
@@ -104,6 +208,43 @@ export const insertUserRepoSchema = createInsertSchema(user_repos).omit({
   updated_at: true,
 });
 
+// Headless CMS insert schemas
+export const insertSiteSchema = createInsertSchema(sites).omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+});
+
+export const insertPostSchema = createInsertSchema(posts).omit({
+  id: true,
+  updated_at: true,
+});
+
+export const insertPostSlugSchema = createInsertSchema(post_slugs).omit({
+  id: true,
+  created_at: true,
+});
+
+export const insertAssetSchema = createInsertSchema(assets).omit({
+  id: true,
+  created_at: true,
+});
+
+export const insertWebhookSchema = createInsertSchema(webhooks).omit({
+  id: true,
+  created_at: true,
+});
+
+export const insertWebhookDeliveryLogSchema = createInsertSchema(webhook_delivery_logs).omit({
+  id: true,
+  created_at: true,
+});
+
+export const insertScheduledJobSchema = createInsertSchema(scheduled_jobs).omit({
+  id: true,
+  created_at: true,
+});
+
 export type InsertClient = z.infer<typeof insertClientSchema>;
 export type Client = typeof clients.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -115,7 +256,25 @@ export type UsageTracking = typeof usage_tracking.$inferSelect;
 export type InsertUserRepo = z.infer<typeof insertUserRepoSchema>;
 export type UserRepo = typeof user_repos.$inferSelect;
 
+// Headless CMS types
+export type InsertSite = z.infer<typeof insertSiteSchema>;
+export type Site = typeof sites.$inferSelect;
+export type InsertPost = z.infer<typeof insertPostSchema>;
+export type Post = typeof posts.$inferSelect;
+export type InsertPostSlug = z.infer<typeof insertPostSlugSchema>;
+export type PostSlug = typeof post_slugs.$inferSelect;
+export type InsertAsset = z.infer<typeof insertAssetSchema>;
+export type Asset = typeof assets.$inferSelect;
+export type InsertWebhook = z.infer<typeof insertWebhookSchema>;
+export type Webhook = typeof webhooks.$inferSelect;
+export type InsertWebhookDeliveryLog = z.infer<typeof insertWebhookDeliveryLogSchema>;
+export type WebhookDeliveryLog = typeof webhook_delivery_logs.$inferSelect;
+export type InsertScheduledJob = z.infer<typeof insertScheduledJobSchema>;
+export type ScheduledJob = typeof scheduled_jobs.$inferSelect;
+
 // Export enum types
 export type UserRole = "admin" | "client_editor" | "client_viewer";
 export type GenerationMode = "ai" | "manual" | "mixed";
 export type ArticleStatus = "draft" | "scheduled" | "published";
+export type PostStatus = "draft" | "scheduled" | "published" | "archived";
+export type WebhookEvent = "post_published" | "post_updated" | "post_deleted";
