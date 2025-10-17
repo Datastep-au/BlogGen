@@ -1,4 +1,4 @@
-import { users, articles, usage_tracking, clients, user_repos, type User, type InsertUser, type Article, type InsertArticle, type UsageTracking, type InsertUsageTracking, type Client, type InsertClient, type UserRepo, type InsertUserRepo } from "@shared/schema";
+import { users, articles, usage_tracking, clients, user_repos, sites, posts, post_slugs, assets, webhooks, webhook_delivery_logs, scheduled_jobs, type User, type InsertUser, type Article, type InsertArticle, type UsageTracking, type InsertUsageTracking, type Client, type InsertClient, type UserRepo, type InsertUserRepo, type Site, type InsertSite, type Post, type InsertPost, type PostSlug, type InsertPostSlug, type Asset, type InsertAsset, type Webhook, type InsertWebhook, type WebhookDeliveryLog, type InsertWebhookDeliveryLog, type ScheduledJob, type InsertScheduledJob } from "@shared/schema";
 
 export interface IStorage {
   // Client methods
@@ -33,9 +33,56 @@ export interface IStorage {
   // Usage tracking methods
   getUsageTracking(userId: number, month: string): Promise<UsageTracking | undefined>;
   updateUsageTracking(userId: number, month: string, incrementBy: number): Promise<UsageTracking>;
+
+  // Headless CMS - Site methods
+  getSite(id: string): Promise<Site | undefined>;
+  getSiteByDomain(domain: string): Promise<Site | undefined>;
+  getSitesByClientId(clientId: number): Promise<Site[]>;
+  createSite(site: InsertSite): Promise<Site>;
+  updateSite(id: string, updates: Partial<Site>): Promise<Site>;
+  deleteSite(id: string): Promise<void>;
+
+  // Headless CMS - Post methods
+  getPost(id: string): Promise<Post | undefined>;
+  getPostBySlug(siteId: string, slug: string): Promise<Post | undefined>;
+  getPostsBySiteId(siteId: string, status?: string, updatedSince?: Date, limit?: number, cursor?: string): Promise<{ posts: Post[], nextCursor: string | null }>;
+  createPost(post: InsertPost): Promise<Post>;
+  updatePost(id: string, updates: Partial<Post>): Promise<Post>;
+  deletePost(id: string): Promise<void>;
+
+  // Headless CMS - Post slug history methods
+  getPostSlugs(postId: string): Promise<PostSlug[]>;
+  createPostSlug(postSlug: InsertPostSlug): Promise<PostSlug>;
+
+  // Headless CMS - Asset methods
+  getAsset(id: string): Promise<Asset | undefined>;
+  getAssetsBySiteId(siteId: string): Promise<Asset[]>;
+  getAssetsByPostId(postId: string): Promise<Asset[]>;
+  createAsset(asset: InsertAsset): Promise<Asset>;
+  deleteAsset(id: string): Promise<void>;
+
+  // Headless CMS - Webhook methods
+  getWebhook(id: string): Promise<Webhook | undefined>;
+  getWebhooksBySiteId(siteId: string): Promise<Webhook[]>;
+  getActiveWebhooksBySiteId(siteId: string): Promise<Webhook[]>;
+  createWebhook(webhook: InsertWebhook): Promise<Webhook>;
+  updateWebhook(id: string, updates: Partial<Webhook>): Promise<Webhook>;
+  deleteWebhook(id: string): Promise<void>;
+
+  // Headless CMS - Webhook delivery log methods
+  createWebhookDeliveryLog(log: InsertWebhookDeliveryLog): Promise<WebhookDeliveryLog>;
+  getWebhookDeliveryLogs(webhookId: string, limit?: number): Promise<WebhookDeliveryLog[]>;
+
+  // Headless CMS - Scheduled job methods
+  getScheduledJob(id: string): Promise<ScheduledJob | undefined>;
+  getPendingScheduledJobs(beforeTime: Date): Promise<ScheduledJob[]>;
+  createScheduledJob(job: InsertScheduledJob): Promise<ScheduledJob>;
+  updateScheduledJob(id: string, updates: Partial<ScheduledJob>): Promise<ScheduledJob>;
+  deleteScheduledJob(id: string): Promise<void>;
 }
 
-export class MemStorage implements IStorage {
+// MemStorage is deprecated - use DatabaseStorage instead
+export class MemStorage implements Partial<IStorage> {
   private clients: Map<number, Client>;
   private users: Map<number, User>;
   private articles: Map<number, Article>;

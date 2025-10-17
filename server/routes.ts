@@ -7,6 +7,10 @@ import { z } from "zod";
 import { githubService } from "./services/github";
 import { emailService } from "./services/email";
 import { optimizeImage, getImagePublicUrl } from "./utils/imageOptimizer";
+import cmsRouter from "./routes/cms";
+import adminSitesRouter from "./routes/admin/sites";
+import adminWebhooksRouter from "./routes/admin/webhooks";
+import adminPostsRouter from "./routes/admin/posts";
 
 const generateRequestSchema = z.object({
   topic: z.string().optional(),
@@ -631,6 +635,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to get image URL" });
     }
   });
+
+  // Register CMS API routes (headless CMS for client sites)
+  app.use("/v1", cmsRouter);
+
+  // Register admin routes for site and webhook management
+  app.use("/api/admin/sites", requireAdmin, adminSitesRouter);
+  app.use("/api/admin/webhooks", requireAdmin, adminWebhooksRouter);
+  app.use("/api/admin/posts", requireAdmin, adminPostsRouter);
 
   const httpServer = createServer(app);
   return httpServer;

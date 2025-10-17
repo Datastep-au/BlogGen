@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { authenticateRequest } from "./services/auth";
 import { initializeStorageBucket } from "./lib/supabaseStorage";
+import { startJobProcessor } from "./lib/jobProcessor";
 
 // Extend Request type to include user
 declare global {
@@ -55,6 +56,10 @@ app.use((req, res, next) => {
 
 (async () => {
   await initializeStorageBucket();
+  
+  // Start job processor for webhooks and scheduled posts (check every minute)
+  await startJobProcessor(60000);
+  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

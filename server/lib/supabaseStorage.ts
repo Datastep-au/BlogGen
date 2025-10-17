@@ -2,8 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 import sharp from 'sharp';
 import { randomUUID } from 'crypto';
 
-const supabaseUrl = process.env.VITE_DATABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '';
+// Use backend-only environment variables (not VITE_ prefixed)
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 if (!supabaseUrl || !supabaseServiceKey) {
   console.warn('⚠️  Supabase credentials not configured. Storage features will be limited.');
