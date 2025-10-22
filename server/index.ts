@@ -55,10 +55,20 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  await initializeStorageBucket();
+  try {
+    await initializeStorageBucket();
+  } catch (error) {
+    console.error('⚠️ Failed to initialize storage bucket:', error instanceof Error ? error.message : String(error));
+    console.error('Storage operations may fail. Please check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.');
+  }
   
-  // Start job processor for webhooks and scheduled posts (check every minute)
-  await startJobProcessor(60000);
+  try {
+    // Start job processor for webhooks and scheduled posts (check every minute)
+    await startJobProcessor(60000);
+  } catch (error) {
+    console.error('⚠️ Failed to start job processor:', error instanceof Error ? error.message : String(error));
+    console.error('Scheduled jobs and webhooks may not be processed.');
+  }
   
   const server = await registerRoutes(app);
 

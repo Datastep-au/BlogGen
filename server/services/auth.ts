@@ -3,8 +3,8 @@ import type { Request, Response, NextFunction } from 'express';
 import { getStorage } from '../storage';
 
 // Initialize Supabase client for server-side auth verification
-const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || 'placeholder-key';
+const supabaseUrl = process.env.SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-key';
 
 // Only create Supabase client if we have valid credentials
 const supabase = (supabaseUrl !== 'https://placeholder.supabase.co' && supabaseServiceKey !== 'placeholder-key')

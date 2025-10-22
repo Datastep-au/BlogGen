@@ -5,10 +5,14 @@ import { eq, and, lte, desc, isNull, gt } from 'drizzle-orm';
 import type { IStorage } from '../storage';
 
 // Use DATABASE_URL which connects to the working heliumdb database
-const connectionString = process.env.DATABASE_URL!;
+const connectionString = process.env.DATABASE_URL || '';
+
+// Only create postgres connection if DATABASE_URL is provided
+if (!connectionString) {
+  throw new Error('DATABASE_URL environment variable is required');
+}
 
 const sql = postgres(connectionString, { prepare: false });
-
 export const db = drizzle(sql);
 
 export class DatabaseStorage implements IStorage {
@@ -95,7 +99,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createArticle(article: InsertArticle): Promise<Article> {
-    const result = await db.insert(articles).values([article]).returning();
+    const result = await db.insert(articles).values(article).returning();
     return result[0];
   }
 

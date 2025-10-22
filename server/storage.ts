@@ -351,15 +351,20 @@ async function initializeStorage(): Promise<IStorage> {
   const databaseUrl = process.env.DATABASE_URL;
   
   if (!databaseUrl) {
-    throw new Error('DATABASE_URL environment variable is required. No fallback storage available.');
+    throw new Error('DATABASE_URL environment variable is required. Please configure it in your deployment settings.');
   }
 
   console.log('🔗 Connecting to database...');
-  const dbStorage = new DatabaseStorage();
-  // Test database connection by trying a simple operation
-  await dbStorage.getAllClients();
-  console.log('✅ Using database storage (PostgreSQL) - Connection successful');
-  return dbStorage;
+  try {
+    const dbStorage = new DatabaseStorage();
+    // Test database connection by trying a simple operation
+    await dbStorage.getAllClients();
+    console.log('✅ Using database storage (PostgreSQL) - Connection successful');
+    return dbStorage;
+  } catch (error) {
+    console.error('❌ Database connection failed:', error instanceof Error ? error.message : String(error));
+    throw new Error(`Failed to connect to database: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 // Initialize database storage immediately - no memory storage fallback
@@ -369,15 +374,30 @@ console.log('🚀 Initializing Supabase database connection...');
 async function getStorage(): Promise<IStorage> {
   if (storage) return storage;
   
-  storage = await initializeStorage();
-  console.log('🎯 BlogGen ready with Supabase database storage');
-  return storage;
+  if (!initializationPromise) {
+    initializationPromise = initializeStorage()
+      .then(s => {
+        storage = s;
+        console.log('🎯 BlogGen ready with Supabase database storage');
+        return s;
+      })
+      .catch(error => {
+        console.error('❌ Database initialization failed:', error instanceof Error ? error.message : String(error));
+        // Don't exit the process - allow the server to start and return proper errors
+        throw error;
+      });
+  }
+  
+  return initializationPromise;
 }
 
-// Start initialization immediately
+// Variable to track initialization promise
+let initializationPromise: Promise<IStorage> | null = null;
+
+// Pre-initialize storage to catch errors early but don't exit on failure
 getStorage().catch(error => {
-  console.error('❌ Database connection failed - no fallback available:', error instanceof Error ? error.message : String(error));
-  process.exit(1); // Exit if database connection fails
+  console.error('⚠️ Initial database connection failed. Server will start but database operations will fail until DATABASE_URL is configured correctly.');
+  console.error('Error details:', error instanceof Error ? error.message : String(error));
 });
 
 export { storage, getStorage };
