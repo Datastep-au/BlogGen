@@ -199,7 +199,11 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(sites).where(eq(sites.client_id, clientId));
   }
 
-  async createSite(site: InsertSite): Promise<Site> {
+  async getAllSites(): Promise<Site[]> {
+    return await db.select().from(sites);
+  }
+
+  async createSite(site: Omit<InsertSite, 'api_key_hash'> & { api_key_hash: string }): Promise<Site> {
     const result = await db.insert(sites).values(site).returning();
     return result[0];
   }

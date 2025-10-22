@@ -38,7 +38,8 @@ export interface IStorage {
   getSite(id: string): Promise<Site | undefined>;
   getSiteByDomain(domain: string): Promise<Site | undefined>;
   getSitesByClientId(clientId: number): Promise<Site[]>;
-  createSite(site: InsertSite): Promise<Site>;
+  getAllSites(): Promise<Site[]>;
+  createSite(site: Omit<InsertSite, 'api_key_hash'> & { api_key_hash: string }): Promise<Site>;
   updateSite(id: string, updates: Partial<Site>): Promise<Site>;
   deleteSite(id: string): Promise<void>;
 

@@ -211,6 +211,7 @@ export const insertUserRepoSchema = createInsertSchema(user_repos).omit({
 // Headless CMS insert schemas
 export const insertSiteSchema = createInsertSchema(sites).omit({
   id: true,
+  api_key_hash: true, // Generated server-side
   created_at: true,
   updated_at: true,
 });

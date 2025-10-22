@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { getStorage } from '../../storage';
 import { generateApiKey, hashApiKey, generateSiteJWT } from '../../lib/apiAuth';
-import { insertSiteSchema } from '@shared/schema';
+import { insertSiteSchema, type Site } from '@shared/schema';
 
 const router = Router();
 
@@ -32,6 +32,30 @@ router.post('/', async (req, res) => {
   } catch (error) {
     console.error('Error creating site:', error);
     res.status(500).json({ error: 'Failed to create site' });
+  }
+});
+
+// List all sites
+router.get('/', async (req, res) => {
+  try {
+    const storage = await getStorage();
+    const sites = await storage.getAllSites();
+    
+    // Don't send API key hashes to client
+    const sanitizedSites = sites.map((site: Site) => ({
+      id: site.id,
+      client_id: site.client_id,
+      name: site.name,
+      domain: site.domain,
+      is_active: site.is_active,
+      created_at: site.created_at,
+      updated_at: site.updated_at
+    }));
+
+    res.json(sanitizedSites);
+  } catch (error) {
+    console.error('Error fetching sites:', error);
+    res.status(500).json({ error: 'Failed to fetch sites' });
   }
 });
 
