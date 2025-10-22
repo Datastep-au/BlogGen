@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth();
@@ -11,17 +12,38 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
-    // Fetch user role
-    if (user) {
-      fetch('/api/user/profile')
-        .then(res => res.json())
-        .then(data => {
-          setUserRole(data.role || 'client_editor');
-        })
-        .catch(() => {
+    // Fetch user role with authentication
+    async function fetchUserRole() {
+      if (!user) return;
+      
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session?.access_token) {
+          console.error('No access token found');
           setUserRole('client_editor');
+          return;
+        }
+        
+        const response = await fetch('/api/user/profile', {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          }
         });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        setUserRole(data.role || 'client_editor');
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+        setUserRole('client_editor');
+      }
     }
+    
+    fetchUserRole();
   }, [user]);
 
   const isActive = (path: string) => {
