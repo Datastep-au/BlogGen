@@ -62,8 +62,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    try {
+      const { error } = await supabase.auth.signOut();
+      // Only throw if it's not a session missing error (which happens in dev mode)
+      if (error && error.message !== 'Auth session missing!') {
+        throw error;
+      }
+    } catch (error) {
+      // In development mode with mock auth, there's no session to sign out from
+      // Just log it and continue with the sign out flow
+      console.log('Sign out (development mode):', error);
+    }
+    // Always clear the user state
+    setUser(null);
   };
 
   const value = {
