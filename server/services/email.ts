@@ -1,8 +1,8 @@
 import fetch from 'node-fetch';
 
-const MAILGUN_API_KEY = process.env.Mailgun_API_KEY || '';
-const MAILGUN_DOMAIN = 'sandboxf680f291031d4a76a7606cbc99df1a74.mailgun.org';
-const FROM_EMAIL = `BlogGen <postmaster@${MAILGUN_DOMAIN}>`;
+const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY || '';
+const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN || 'bloggen.pro';
+const FROM_EMAIL = process.env.MAILGUN_FROM_EMAIL || `BlogGen <noreply@${MAILGUN_DOMAIN}>`;
 
 export class EmailService {
   private apiKey: string;
