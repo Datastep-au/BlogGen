@@ -40,3 +40,7 @@ integrations = ["javascript_supabase:1.0.0", "javascript_openai:1.0.0"]
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 36981
+externalPort = 3000
