@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { PlusCircle, LayoutDashboard, LogOut, User, Shield } from 'lucide-react';
+import { PlusCircle, LayoutDashboard, LogOut, User, Shield, Globe } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
@@ -66,6 +66,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 >
                   <LayoutDashboard className="w-4 h-4 mr-2" />
                   Dashboard
+                </Link>
+                <Link
+                  to="/app/sites"
+                  className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg ${
+                    isActive('/app/sites')
+                      ? 'bg-green-100 text-green-700'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <Globe className="w-4 h-4 mr-2" />
+                  CMS Sites
                 </Link>
                 {userRole === 'admin' && (
                   <Link
