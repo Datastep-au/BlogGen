@@ -16,42 +16,9 @@ const supabase = (supabaseUrl !== 'https://placeholder.supabase.co' && supabaseS
  */
 export async function authenticateRequest(req: Request, res: Response, next: NextFunction) {
   try {
-    // For development, allow mock user if no auth header
-    if (process.env.NODE_ENV === 'development' && !req.headers.authorization) {
-      // Check if we have a test admin user
-      const storage = await getStorage();
-      let testUser = await storage.getUserByEmail('admin@bloggen.com');
-      
-      if (!testUser) {
-        // Create test admin user
-        testUser = await storage.createUser({
-          email: 'admin@bloggen.com',
-          full_name: 'Test Admin',
-          role: 'admin',
-        });
-      }
-      
-      req.user = { id: testUser.id, email: testUser.email };
-      return next();
-    }
-
-    // If Supabase is not configured, skip token verification in development
+    // If Supabase is not configured, return error
     if (!supabase) {
-      // Use development mock user
-      const storage = await getStorage();
-      let testUser = await storage.getUserByEmail('admin@bloggen.com');
-      
-      if (!testUser) {
-        // Create test admin user
-        testUser = await storage.createUser({
-          email: 'admin@bloggen.com',
-          full_name: 'Test Admin',
-          role: 'admin',
-        });
-      }
-      
-      req.user = { id: testUser.id, email: testUser.email };
-      return next();
+      return res.status(500).json({ error: 'Authentication service not configured. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.' });
     }
 
     // Extract token from Authorization header
