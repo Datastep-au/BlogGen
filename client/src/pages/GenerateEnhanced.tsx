@@ -8,12 +8,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar as CalendarIcon, Sparkles, Upload, GitBranch, AlertCircle, CheckCircle2, Loader2, Image as ImageIcon } from 'lucide-react';
-import { format } from 'date-fns';
+import { Sparkles, Upload, GitBranch, AlertCircle, CheckCircle2, Loader2, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Client } from '@shared/schema';
 
@@ -22,7 +19,6 @@ export default function GenerateEnhanced() {
   const [mode, setMode] = useState<'single' | 'bulk'>('single');
   const [topic, setTopic] = useState('');
   const [bulkTopics, setBulkTopics] = useState('');
-  const [publishDate, setPublishDate] = useState<Date | undefined>(undefined);
   const [commitToRepo, setCommitToRepo] = useState(false);
   const [generateImage, setGenerateImage] = useState(true);
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
@@ -84,7 +80,6 @@ export default function GenerateEnhanced() {
         // Reset form
         setTopic('');
         setBulkTopics('');
-        setPublishDate(undefined);
         setImagePrompt('');
       } else {
         toast({
@@ -117,7 +112,6 @@ export default function GenerateEnhanced() {
     const requestData: any = {
       commit_to_repo: commitToRepo,
       client_id: selectedClientId,
-      publish_at: publishDate?.toISOString(),
       generate_image: generateImage,
       image_prompt: imagePrompt || undefined,
     };
@@ -187,7 +181,7 @@ export default function GenerateEnhanced() {
         <CardContent>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+              <Sparkles className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm">
                 {usage ? `${usage.count} / ${usage.limit}` : '0 / 10'} articles generated
               </span>
@@ -285,34 +279,6 @@ export default function GenerateEnhanced() {
           {/* Advanced Options */}
           <div className="space-y-4 border-t pt-4">
             <h3 className="text-sm font-semibold">Advanced Options</h3>
-
-            {/* Publish Date */}
-            <div className="space-y-2">
-              <Label>Publish Date (Optional)</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !publishDate && "text-muted-foreground"
-                    )}
-                    data-testid="button-publish-date"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {publishDate ? format(publishDate, "PPP") : "Schedule for later"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={publishDate}
-                    onSelect={setPublishDate}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
 
             {/* Image Generation */}
             <div className="space-y-4">
