@@ -196,6 +196,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create site for existing client (one-time fix endpoint)
+  app.post("/api/admin/clients/:clientId/create-site", requireAdmin, async (req, res) => {
+    try {
+      const clientId = parseInt(req.params.clientId);
+      const { domain } = req.body;
+
+      // Check if client exists
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ error: "Client not found" });
+      }
+
+      // Check if site already exists
+      const existingSites = await storage.getSitesByClientId(clientId);
+      if (existingSites.length > 0) {
+        return res.status(409).json({ error: "Site already exists for this client" });
+      }
+
+      // Create site with storage bucket
+      const crypto = await import('crypto');
+      const bcrypt = await import('bcryptjs');
+      const { createSiteStorageBucket } = await import('./lib/supabaseStorage');
+      
+      // Generate a unique API key
+      const apiKey = crypto.randomBytes(32).toString('hex');
+      const apiKeyHash = await bcrypt.hash(apiKey, 10);
+      
+      // Create site
+      const tempSite = await storage.createSite({
+        client_id: client.id,
+        name: client.name,
+        domain: domain || null,
+        api_key_hash: apiKeyHash,
+        storage_bucket_name: 'temp',
+      });
+      
+      // Create dedicated storage bucket for this site
+      const { success: bucketSuccess, bucketName, error: bucketError } = await createSiteStorageBucket(tempSite.id);
+      
+      if (!bucketSuccess) {
+        return res.status(500).json({ 
+          error: "Failed to create storage bucket",
+          details: bucketError 
+        });
+      }
+
+      // Update site with the actual bucket name
+      await storage.updateSite(tempSite.id, {
+        storage_bucket_name: bucketName!,
+      });
+
+      res.json({
+        success: true,
+        site: {
+          id: tempSite.id,
+          name: tempSite.name,
+          domain: tempSite.domain,
+          storage_bucket_name: bucketName,
+        },
+        api_key: apiKey,
+        message: "Site created successfully! Save the API key - it won't be shown again!"
+      });
+    } catch (error) {
+      console.error("Error creating site:", error);
+      res.status(500).json({ 
+        error: "Failed to create site",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Invite user to client workspace
   app.post("/api/admin/clients/:clientId/invite", requireAdmin, async (req, res) => {
     try {

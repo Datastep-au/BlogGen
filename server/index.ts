@@ -63,6 +63,63 @@ app.use((req, res, next) => {
   }
   
   try {
+    console.log('🔍 Checking for clients without sites...');
+    // Automatically create sites for clients that don't have one
+    const { getStorage } = await import('./storage');
+    const { createSiteStorageBucket } = await import('./lib/supabaseStorage');
+    const crypto = await import('crypto');
+    const bcrypt = await import('bcryptjs');
+    
+    const storage = await getStorage();
+    const clients = await storage.getAllClients();
+    console.log(`📊 Found ${clients.length} client(s)`);
+    
+    for (const client of clients) {
+      const sites = await storage.getSitesByClientId(client.id);
+      console.log(`📍 Client "${client.name}" has ${sites.length} site(s)`);
+      
+      if (sites.length === 0) {
+        console.log(`🔧 Creating site for client "${client.name}" (ID: ${client.id})...`);
+        
+        try {
+          // Generate a unique API key
+          const apiKey = crypto.randomBytes(32).toString('hex');
+          const apiKeyHash = await bcrypt.hash(apiKey, 10);
+          
+          // Create site
+          const tempSite = await storage.createSite({
+            client_id: client.id,
+            name: client.name,
+            domain: null,
+            api_key_hash: apiKeyHash,
+            storage_bucket_name: 'temp',
+          });
+          
+          console.log(`📦 Creating storage bucket for site ${tempSite.id}...`);
+          // Create dedicated storage bucket for this site
+          const { success: bucketSuccess, bucketName, error: bucketError } = await createSiteStorageBucket(tempSite.id);
+          
+          if (bucketSuccess) {
+            // Update site with the actual bucket name
+            await storage.updateSite(tempSite.id, {
+              storage_bucket_name: bucketName!,
+            });
+            console.log(`✅ Site created for client "${client.name}" with bucket: ${bucketName}`);
+          } else {
+            console.warn(`⚠️ Failed to create storage bucket for site ${tempSite.id}:`, bucketError);
+          }
+        } catch (error) {
+          console.error(`❌ Failed to create site for client "${client.name}":`, error);
+        }
+      }
+    }
+    console.log('✅ Site check completed');
+  } catch (error) {
+    console.error('⚠️ Failed to auto-create sites:');
+    console.error(error);
+  }
+  
+  try {
     // Start job processor for webhooks and scheduled posts (check every minute)
     await startJobProcessor(60000);
   } catch (error) {
