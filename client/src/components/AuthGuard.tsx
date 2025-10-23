@@ -9,16 +9,16 @@ interface AuthGuardProps {
 }
 
 export default function AuthGuard({ children, requireAdmin = false }: AuthGuardProps) {
-  const { user, loading } = useAuth();
+  const { user, session, loading } = useAuth();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [checkingRole, setCheckingRole] = useState(true);
 
   useEffect(() => {
     // Check user role from backend
-    if (user) {
+    if (user && session?.access_token) {
       fetch('/api/user/profile', {
         headers: {
-          'Authorization': `Bearer ${user.id}`,
+          'Authorization': `Bearer ${session.access_token}`,
         },
       })
         .then(res => res.json())
@@ -26,15 +26,15 @@ export default function AuthGuard({ children, requireAdmin = false }: AuthGuardP
           setUserRole(data.role || 'client_editor');
           setCheckingRole(false);
         })
-        .catch(() => {
-          // Default to client_editor if can't fetch role
+        .catch((error) => {
+          console.error('Error fetching user role:', error);
           setUserRole('client_editor');
           setCheckingRole(false);
         });
     } else {
       setCheckingRole(false);
     }
-  }, [user]);
+  }, [user, session]);
 
   if (loading || checkingRole) {
     return (

@@ -17,6 +17,7 @@ export interface IStorage {
 
   // Article methods
   getArticle(id: number): Promise<Article | undefined>;
+  getAllArticles(): Promise<Article[]>;
   getArticlesByUserId(userId: number): Promise<Article[]>;
   getArticlesByClientId(clientId: number): Promise<Article[]>;
   createArticle(article: InsertArticle): Promise<Article>;

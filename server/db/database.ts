@@ -86,6 +86,10 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  async getAllArticles(): Promise<Article[]> {
+    return await db.select().from(articles).orderBy(articles.created_at);
+  }
+
   async getArticlesByUserId(userId: number): Promise<Article[]> {
     return await db.select().from(articles)
       .where(eq(articles.user_id, userId))
