@@ -1,0 +1,53 @@
+Refined functional overview
+
+Let’s step back and outline how Bloggen is designed to operate in its Supabase-based architecture:
+
+Admin-level control
+
+Admin users have full control of the platform.
+
+They can create and manage sites, generate and rotate API keys, manage user access (invite/remove), and configure global settings such as storage policies and webhooks.
+
+All invitations, site creation, and API management actions are initiated by an Admin.
+
+Role-based access
+
+Regular users (Editors or Viewers) can only access sites to which they are invited.
+
+Once invited, a user will see only those specific sites upon logging in.
+
+Role determines permissions (e.g. Editors can create and publish articles; Viewers can only read or download).
+
+Automatic Supabase provisioning
+
+When an Admin creates a new site, the system automatically:
+
+Creates a dedicated storage bucket in Supabase (named after the site ID or slug).
+
+Registers that bucket in the sites table for article asset storage.
+
+Initializes any necessary default configuration (e.g. webhook secret, API key, base domain).
+
+User invitation workflow
+
+After a site is created, the Admin invites collaborators to that site.
+
+Invited users receive an email (or in-app invite) and, once accepted, gain access to that site’s workspace to start generating articles.
+
+Website integration (API publishing)
+
+The Admin connects the client’s public website to Bloggen via the site’s read-only API.
+
+This enables automatic publishing and synchronization of generated articles to the client’s website using Bloggen’s REST API or webhook-based integration (no repo writes required).
+
+Article generation and export
+
+Users (Editors) can generate new articles within the UI — Bloggen automatically stores each article’s Markdown, metadata, and associated images in Supabase.
+
+From the UI, users can also download a ZIP package that includes:
+
+The .md file of the article (with front-matter)
+
+The generated image assets (e.g. hero/cover)
+
+This ZIP can be used for manual publishing or archiving if needed.
