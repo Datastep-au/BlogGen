@@ -15,16 +15,31 @@ router.post('/', async (req, res) => {
     const apiKey = generateApiKey();
     const apiKeyHash = await hashApiKey(apiKey);
 
-    const site = await storage.createSite({
+    // Create site with temporary bucket name
+    const { createSiteStorageBucket } = await import('../../lib/supabaseStorage');
+    const tempSite = await storage.createSite({
       ...data,
       api_key_hash: apiKeyHash,
+      storage_bucket_name: 'temp',
     });
 
+    // Create dedicated storage bucket for this site
+    const { success, bucketName, error: bucketError } = await createSiteStorageBucket(tempSite.id);
+    
+    if (!success) {
+      console.warn(`Failed to create storage bucket for site ${tempSite.id}:`, bucketError);
+    } else {
+      // Update site with the actual bucket name
+      await storage.updateSite(tempSite.id, {
+        storage_bucket_name: bucketName!,
+      });
+    }
+
     // Generate JWT token for the site
-    const token = generateSiteJWT(site.id, site.domain || undefined);
+    const token = generateSiteJWT(tempSite.id, tempSite.domain || undefined);
 
     res.json({
-      site,
+      site: { ...tempSite, storage_bucket_name: bucketName },
       api_key: apiKey, // Only shown once
       token,
       message: 'Site created successfully. Save the API key - it will not be shown again.'

@@ -13,6 +13,37 @@ export interface BlogArticle {
   wordCount: number;
 }
 
+export interface GeneratedImage {
+  url: string;
+  revisedPrompt?: string;
+}
+
+export async function generateImage(prompt: string): Promise<GeneratedImage> {
+  try {
+    const response = await openai.images.generate({
+      model: "dall-e-3",
+      prompt: prompt,
+      n: 1,
+      size: "1792x1024", // Wide format for hero images
+      quality: "standard",
+    });
+
+    const imageData = response.data[0];
+    
+    if (!imageData.url) {
+      throw new Error('No image URL returned from OpenAI');
+    }
+
+    return {
+      url: imageData.url,
+      revisedPrompt: imageData.revised_prompt,
+    };
+  } catch (error) {
+    console.error('Error generating image with DALL-E:', error);
+    throw error;
+  }
+}
+
 export async function generateBlogArticle(topic: string): Promise<BlogArticle> {
   try {
     // Get the AI visibility prompt from environment variables

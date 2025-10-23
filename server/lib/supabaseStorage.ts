@@ -38,6 +38,76 @@ export async function initializeStorageBucket() {
   }
 }
 
+export async function createSiteStorageBucket(siteId: string): Promise<{ success: boolean; bucketName?: string; error?: string }> {
+  try {
+    const bucketName = `site-${siteId}`;
+    const { data: buckets } = await supabaseStorage.storage.listBuckets();
+    const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
+
+    if (bucketExists) {
+      return { success: true, bucketName };
+    }
+
+    const { data, error } = await supabaseStorage.storage.createBucket(bucketName, {
+      public: true,
+      fileSizeLimit: 10485760, // 10MB
+    });
+
+    if (error) {
+      console.error('Failed to create site storage bucket:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log('✅ Site storage bucket created:', bucketName);
+    return { success: true, bucketName };
+  } catch (error) {
+    console.error('Error creating site storage bucket:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
+  }
+}
+
+export async function downloadAndUploadImage(imageUrl: string, bucketName: string, filename: string): Promise<{ success: boolean; url?: string; error?: string }> {
+  try {
+    // Download image from URL
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to download image: ${response.statusText}`);
+    }
+
+    const imageBuffer = Buffer.from(await response.arrayBuffer());
+
+    // Upload to Supabase storage
+    const path = `images/${Date.now()}-${filename}`;
+    const { data, error } = await supabaseStorage.storage
+      .from(bucketName)
+      .upload(path, imageBuffer, {
+        contentType: response.headers.get('content-type') || 'image/png',
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (error) {
+      console.error('Failed to upload image to Supabase:', error);
+      return { success: false, error: error.message };
+    }
+
+    const { data: { publicUrl } } = supabaseStorage.storage
+      .from(bucketName)
+      .getPublicUrl(path);
+
+    return { success: true, url: publicUrl };
+  } catch (error) {
+    console.error('Error downloading and uploading image:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
+  }
+}
+
 export interface ImageVariant {
   name: string;
   width: number;

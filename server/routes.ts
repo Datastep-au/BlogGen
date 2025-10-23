@@ -58,7 +58,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create new client workspace
   app.post("/api/admin/clients", requireAdmin, async (req, res) => {
     try {
-      const { name } = req.body;
+      const { name, domain } = req.body;
       
       if (!name) {
         return res.status(400).json({ error: "Client name is required" });
@@ -91,11 +91,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         repo_url,
       });
 
+      // Automatically create a site for this client (one-to-one relationship)
+      const crypto = await import('crypto');
+      const bcrypt = await import('bcryptjs');
+      const { createSiteStorageBucket } = await import('./lib/supabaseStorage');
+      
+      // Generate a unique API key
+      const apiKey = crypto.randomBytes(32).toString('hex');
+      const apiKeyHash = await bcrypt.hash(apiKey, 10);
+      
+      // Create site with temporary ID to get the actual UUID
+      const tempSite = await storage.createSite({
+        client_id: client.id,
+        name: name,
+        domain: domain || null,
+        api_key_hash: apiKeyHash,
+        storage_bucket_name: 'temp', // Will be updated after we get the UUID
+      });
+      
+      // Create dedicated storage bucket for this site
+      const { success: bucketSuccess, bucketName, error: bucketError } = await createSiteStorageBucket(tempSite.id);
+      
+      if (!bucketSuccess) {
+        console.warn(`Failed to create storage bucket for site ${tempSite.id}:`, bucketError);
+      } else {
+        // Update site with the actual bucket name
+        await storage.updateSite(tempSite.id, {
+          storage_bucket_name: bucketName!,
+        });
+      }
+
       res.json({
         success: true,
         client,
+        site: {
+          id: tempSite.id,
+          name: tempSite.name,
+          domain: tempSite.domain,
+          storage_bucket_name: bucketName,
+        },
+        api_key: apiKey, // Return API key only once!
         repo_url,
-        message: `Client workspace created successfully with repository at ${repo_url}`
+        message: `Client workspace and site created successfully. Save the API key - it won't be shown again!`
       });
     } catch (error) {
       console.error("Error creating client:", error);
@@ -272,11 +309,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const imagePrompt = req.body.image_prompt || 
               `Professional blog hero image for article about: ${data.topic}. High quality, modern, visually appealing.`;
             
-            // Note: Image generation would be handled by a separate service
-            // For now, we'll store the prompt for later processing
             heroImageDescription = imagePrompt;
-            // In production, you would call an image generation API here
-            // heroImageUrl = await generateImage(imagePrompt);
+            
+            try {
+              // Import image generation functions
+              const { generateImage } = await import('./lib/openai');
+              const { downloadAndUploadImage } = await import('./lib/supabaseStorage');
+              
+              // Generate image with DALL-E
+              const generatedImage = await generateImage(imagePrompt);
+              
+              // Get site for this client to upload to the right bucket
+              if (clientId) {
+                const sites = await storage.getSitesByClientId(clientId);
+                const site = sites[0]; // One-to-one relationship
+                
+                if (site && site.storage_bucket_name) {
+                  // Download and upload to site's bucket
+                  const uploadResult = await downloadAndUploadImage(
+                    generatedImage.url,
+                    site.storage_bucket_name,
+                    `hero-${Date.now()}.png`
+                  );
+                  
+                  if (uploadResult.success) {
+                    heroImageUrl = uploadResult.url!;
+                  } else {
+                    console.warn('Failed to upload image:', uploadResult.error);
+                    // Fall back to temporary DALL-E URL
+                    heroImageUrl = generatedImage.url;
+                  }
+                } else {
+                  // No site bucket, use temporary DALL-E URL
+                  heroImageUrl = generatedImage.url;
+                }
+              } else {
+                // No client, use temporary DALL-E URL
+                heroImageUrl = generatedImage.url;
+              }
+            } catch (error) {
+              console.error('Failed to generate hero image:', error);
+              // Continue without image
+            }
           }
           
           const createdArticle = await storage.createArticle({

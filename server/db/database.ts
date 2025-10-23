@@ -28,7 +28,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createClient(client: InsertClient): Promise<Client> {
-    const result = await db.insert(clients).values(client).returning();
+    const result = await db.insert(clients).values([client]).returning();
     return result[0];
   }
 
@@ -60,7 +60,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    const result = await db.insert(users).values(user).returning();
+    const result = await db.insert(users).values([user]).returning();
     return result[0];
   }
 
@@ -103,7 +103,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createArticle(article: InsertArticle): Promise<Article> {
-    const result = await db.insert(articles).values(article).returning();
+    const result = await db.insert(articles).values([article]).returning();
     return result[0];
   }
 
@@ -172,7 +172,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUserRepo(repo: InsertUserRepo): Promise<UserRepo> {
-    const result = await db.insert(user_repos).values(repo).returning();
+    const result = await db.insert(user_repos).values([repo]).returning();
     return result[0];
   }
 
@@ -211,8 +211,8 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(sites);
   }
 
-  async createSite(site: Omit<InsertSite, 'api_key_hash'> & { api_key_hash: string }): Promise<Site> {
-    const result = await db.insert(sites).values(site).returning();
+  async createSite(site: Omit<InsertSite, 'api_key_hash' | 'storage_bucket_name'> & { api_key_hash: string; storage_bucket_name: string }): Promise<Site> {
+    const result = await db.insert(sites).values([site]).returning();
     return result[0];
   }
 
@@ -301,7 +301,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createPost(post: InsertPost): Promise<Post> {
-    const result = await db.insert(posts).values(post).returning();
+    const result = await db.insert(posts).values([post]).returning();
     return result[0];
   }
 
@@ -329,7 +329,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createPostSlug(postSlug: InsertPostSlug): Promise<PostSlug> {
-    const result = await db.insert(post_slugs).values(postSlug).returning();
+    const result = await db.insert(post_slugs).values([postSlug]).returning();
     return result[0];
   }
 
@@ -348,7 +348,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createAsset(asset: InsertAsset): Promise<Asset> {
-    const result = await db.insert(assets).values(asset).returning();
+    const result = await db.insert(assets).values([asset]).returning();
     return result[0];
   }
 
@@ -372,7 +372,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createWebhook(webhook: InsertWebhook): Promise<Webhook> {
-    const result = await db.insert(webhooks).values(webhook).returning();
+    const result = await db.insert(webhooks).values([webhook]).returning();
     return result[0];
   }
 
@@ -394,7 +394,7 @@ export class DatabaseStorage implements IStorage {
 
   // Headless CMS - Webhook delivery log methods
   async createWebhookDeliveryLog(log: InsertWebhookDeliveryLog): Promise<WebhookDeliveryLog> {
-    const result = await db.insert(webhook_delivery_logs).values(log).returning();
+    const result = await db.insert(webhook_delivery_logs).values([log]).returning();
     return result[0];
   }
 
@@ -421,7 +421,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createScheduledJob(job: InsertScheduledJob): Promise<ScheduledJob> {
-    const result = await db.insert(scheduled_jobs).values(job).returning();
+    const result = await db.insert(scheduled_jobs).values([job]).returning();
     return result[0];
   }
 

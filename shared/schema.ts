@@ -84,11 +84,13 @@ export const user_repos = pgTable("user_repos", {
 // ==================== HEADLESS CMS TABLES ====================
 
 // Sites table for multi-tenant headless CMS
+// One-to-one relationship with clients: each client has exactly one site
 export const sites = pgTable("sites", {
   id: uuid("id").primaryKey().defaultRandom(),
-  client_id: integer("client_id").references(() => clients.id, { onDelete: "cascade" }),
+  client_id: integer("client_id").notNull().unique().references(() => clients.id, { onDelete: "cascade" }), // One-to-one with clients
   name: text("name").notNull(),
   domain: text("domain"), // e.g. example.com
+  storage_bucket_name: text("storage_bucket_name").notNull(), // Dedicated Supabase storage bucket
   api_key_hash: text("api_key_hash").notNull(), // bcrypt hash of API key
   is_active: boolean("is_active").default(true).notNull(),
   created_at: timestamp("created_at").defaultNow().notNull(),
@@ -212,6 +214,7 @@ export const insertUserRepoSchema = createInsertSchema(user_repos).omit({
 export const insertSiteSchema = createInsertSchema(sites).omit({
   id: true,
   api_key_hash: true, // Generated server-side
+  storage_bucket_name: true, // Generated server-side
   created_at: true,
   updated_at: true,
 });
