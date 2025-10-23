@@ -694,17 +694,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
       
-      // Remove definition nodes since we've converted references to inline
-      visit(tree, 'definition', (node: any, index: number, parent: any) => {
-        if (node.identifier && definitions.has(node.identifier)) {
-          // Remove this definition from parent's children
-          if (parent && parent.children && typeof index === 'number') {
-            parent.children.splice(index, 1);
-            return index; // Tell visitor to skip ahead
-          }
-        }
-      });
-      
       // Serialize the AST back to markdown
       const remarkStringify = (await import('remark-stringify')).default;
       const processedContent = processor.use(remarkStringify).stringify(tree);
@@ -748,7 +737,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Download and add all embedded images
-      for (const [url, localName] of imageMap) {
+      for (const entry of Array.from(imageMap.entries())) {
+        const [url, localName] = entry;
         try {
           const imageResponse = await fetch(url);
           if (imageResponse.ok) {

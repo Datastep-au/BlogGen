@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Copy, Key, Plus, RefreshCw } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 import {
   Dialog,
   DialogContent,
@@ -30,13 +33,60 @@ type SiteWithKey = Site & {
 
 export default function Sites() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newSiteName, setNewSiteName] = useState("");
   const [newSiteDomain, setNewSiteDomain] = useState("");
   const [createdSite, setCreatedSite] = useState<SiteWithKey | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  // Check user role and redirect if not admin
+  useEffect(() => {
+    async function checkAuth() {
+      if (!user) return;
+      
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session?.access_token) {
+          console.error('No access token found');
+          setLocation('/app/dashboard');
+          return;
+        }
+        
+        const response = await fetch('/api/user/profile', {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setUserRole(data.role);
+          if (data.role !== 'admin') {
+            toast({
+              title: "Access Denied",
+              description: "You don't have permission to access this page",
+              variant: "destructive",
+            });
+            setLocation('/app/dashboard');
+          }
+        } else {
+          setLocation('/app/dashboard');
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        setLocation('/app/dashboard');
+      }
+    }
+    
+    checkAuth();
+  }, [user, setLocation, toast]);
 
   const { data: sites = [], isLoading } = useQuery<Site[]>({
     queryKey: ["/api/admin/sites"],
+    enabled: userRole === 'admin', // Only fetch if admin
   });
 
   const createSiteMutation = useMutation({
