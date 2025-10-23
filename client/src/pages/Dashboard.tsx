@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
-import { FileText, TrendingUp, Edit, Clock, Calendar, Eye, Type, Search, Download, Copy, Trash2, ChevronLeft, ChevronRight, MoreVertical, Globe } from 'lucide-react';
+import { FileText, TrendingUp, Edit, Clock, Calendar as CalendarIcon, Eye, Type, Search, Download, Copy, Trash2, ChevronLeft, ChevronRight, MoreVertical, Globe } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import ArticleEditor from '@/components/ArticleEditor';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import type { Article } from '@shared/schema';
 
 export default function Dashboard() {
@@ -590,6 +593,125 @@ ${article.content}`;
                 __html: viewingArticle.content.replace(/\n/g, '<br />') 
               }} 
             />
+          </div>
+          
+          {/* Publish Date Section */}
+          <div className="mt-8 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-gray-900 mb-1">Schedule Publication</h3>
+                <p className="text-xs text-gray-600">
+                  {viewingArticle.scheduled_date 
+                    ? `Scheduled for ${format(new Date(viewingArticle.scheduled_date), 'PPP')}` 
+                    : 'Set a publish date for this article'}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {viewingArticle.scheduled_date && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(`/api/articles/${viewingArticle.id}/schedule`, {
+                          method: 'PATCH',
+                          credentials: 'include',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${session?.access_token}`,
+                          },
+                          body: JSON.stringify({ scheduled_date: null }),
+                        });
+                        
+                        if (!response.ok) {
+                          throw new Error('Failed to clear schedule');
+                        }
+                        
+                        const updatedArticle = await response.json();
+                        setViewingArticle(updatedArticle);
+                        
+                        // Refetch articles and stats to keep everything in sync
+                        await Promise.all([fetchArticles(), fetchStats()]);
+                        
+                        toast({
+                          title: "Schedule Cleared",
+                          description: "Article reverted to draft status",
+                        });
+                      } catch (error) {
+                        console.error('Error clearing schedule:', error);
+                        toast({
+                          title: "Error",
+                          description: "Failed to clear schedule",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                    data-testid="button-clear-schedule"
+                  >
+                    Clear
+                  </Button>
+                )}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[240px] justify-start text-left font-normal",
+                        !viewingArticle.scheduled_date && "text-muted-foreground"
+                      )}
+                      data-testid="button-schedule-publish-date"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {viewingArticle.scheduled_date ? format(new Date(viewingArticle.scheduled_date), "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      mode="single"
+                      selected={viewingArticle.scheduled_date ? new Date(viewingArticle.scheduled_date) : undefined}
+                      onSelect={async (date) => {
+                        if (date) {
+                          try {
+                            const response = await fetch(`/api/articles/${viewingArticle.id}/schedule`, {
+                              method: 'PATCH',
+                              credentials: 'include',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${session?.access_token}`,
+                              },
+                              body: JSON.stringify({ scheduled_date: date.toISOString() }),
+                            });
+                            
+                            if (!response.ok) {
+                              throw new Error('Failed to update schedule');
+                            }
+                            
+                            const updatedArticle = await response.json();
+                            setViewingArticle(updatedArticle);
+                            
+                            // Refetch articles and stats to keep everything in sync
+                            await Promise.all([fetchArticles(), fetchStats()]);
+                            
+                            toast({
+                              title: "Schedule Updated",
+                              description: `Article scheduled for ${format(date, 'PPP')}`,
+                            });
+                          } catch (error) {
+                            console.error('Error updating schedule:', error);
+                            toast({
+                              title: "Error",
+                              description: "Failed to update schedule",
+                              variant: "destructive",
+                            });
+                          }
+                        }
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
           </div>
           
           <div className="mt-8 pt-6 border-t border-gray-200 flex items-center justify-between text-sm text-gray-500">

@@ -932,6 +932,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update article scheduled date
+  app.patch("/api/articles/:id/schedule", requireClientAccess, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      const articleId = parseInt(req.params.id);
+      const { scheduled_date } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      // Check that scheduled_date field is present in request (can be null to clear)
+      if (!req.body.hasOwnProperty('scheduled_date')) {
+        return res.status(400).json({ error: "scheduled_date field is required" });
+      }
+
+      // Get the article
+      const article = await storage.getArticle(articleId);
+      if (!article) {
+        return res.status(404).json({ error: "Article not found" });
+      }
+
+      // Get user to check client_id
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ error: "User not found" });
+      }
+
+      // Check authorization - user must be admin or belong to the same client
+      if (user.role !== 'admin' && article.client_id !== user.client_id) {
+        return res.status(403).json({ error: "Forbidden - access denied" });
+      }
+
+      // Update the scheduled_date (null to clear, date to set)
+      const updateData: any = {
+        scheduled_date: scheduled_date ? new Date(scheduled_date) : null,
+      };
+      
+      // Update status based on scheduled_date
+      if (scheduled_date) {
+        updateData.status = 'scheduled' as const;
+      } else {
+        // If clearing schedule, revert to draft
+        updateData.status = 'draft' as const;
+      }
+
+      const updatedArticle = await storage.updateArticle(articleId, updateData);
+
+      res.json(updatedArticle);
+    } catch (error) {
+      console.error("Error updating article schedule:", error);
+      res.status(500).json({ error: "Failed to update article schedule" });
+    }
+  });
+
   // Get user profile
   app.get("/api/user/profile", async (req, res) => {
     try {
