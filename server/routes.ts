@@ -869,7 +869,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Serialize the AST back to markdown
       const remarkStringify = (await import('remark-stringify')).default;
-      const processedContent = processor.use(remarkStringify).stringify(tree);
+      const { unified } = await import('unified');
+      const stringifyProcessor = unified().use(remarkStringify);
+      const processedContent = stringifyProcessor.stringify(tree);
 
       const frontmatter = [
         '---',
