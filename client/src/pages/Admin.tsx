@@ -61,7 +61,7 @@ export default function Admin() {
     onSuccess: (data) => {
       toast({
         title: "Client Created",
-        description: `${data.client.name} workspace has been created with GitHub repository`,
+        description: `${data.client.name} workspace has been created with dedicated site, GitHub repository, and storage bucket`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/clients"] });
       setIsCreateDialogOpen(false);
@@ -171,7 +171,7 @@ export default function Admin() {
             <DialogHeader>
               <DialogTitle>Create New Client Workspace</DialogTitle>
               <DialogDescription>
-                This will create a new client workspace and initialize a private GitHub repository for their content.
+                This will create a new client workspace with a dedicated site, private GitHub repository, and secure storage bucket for their content.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">

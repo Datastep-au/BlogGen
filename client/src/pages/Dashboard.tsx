@@ -184,6 +184,54 @@ export default function Dashboard() {
     setCopyingArticle(article);
   };
 
+  const [downloadingArticleId, setDownloadingArticleId] = useState<number | null>(null);
+
+  const handleDownloadZip = async (article: Article) => {
+    if (downloadingArticleId) return; // Prevent duplicate downloads
+    
+    setDownloadingArticleId(article.id);
+    try {
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
+      }
+
+      const response = await fetch(`/api/articles/${article.id}/export`, {
+        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download article');
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${article.slug || `article-${article.id}`}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: 'Success',
+        description: 'Article downloaded successfully',
+      });
+    } catch (error) {
+      console.error('Error downloading article:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to download article',
+        variant: 'destructive',
+      });
+    } finally {
+      setDownloadingArticleId(null);
+    }
+  };
+
   const copyToClipboard = async (text: string, description: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -568,7 +616,7 @@ ${article.content}`;
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Article Dashboard</h1>
-          <p className="text-gray-600 mt-1">Manage and edit your generated articles</p>
+          <p className="text-gray-600 mt-1">Manage and edit your generated articles for your dedicated site</p>
         </div>
         <div className="mt-4 sm:mt-0">
           <Button 
@@ -750,9 +798,30 @@ ${article.content}`;
                     size="sm"
                     onClick={() => handleCopyArticle(article)}
                     className="text-green-600 hover:bg-green-50"
+                    data-testid={`button-copy-${article.id}`}
                   >
                     <Copy className="w-4 h-4 mr-1" />
                     Copy
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDownloadZip(article)}
+                    className="text-purple-600 hover:bg-purple-50"
+                    disabled={downloadingArticleId === article.id}
+                    data-testid={`button-download-${article.id}`}
+                  >
+                    {downloadingArticleId === article.id ? (
+                      <>
+                        <div className="animate-spin w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full mr-1" />
+                        ZIP
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4 mr-1" />
+                        ZIP
+                      </>
+                    )}
                   </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

@@ -605,6 +605,168 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Export article as ZIP (markdown + images)
+  app.get("/api/articles/:id/export", requireClientAccess, async (req, res) => {
+    try {
+      const archiver = (await import('archiver')).default;
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const articleId = parseInt(req.params.id);
+
+      // Verify article access
+      const article = await storage.getArticle(articleId);
+      if (!article) {
+        return res.status(404).json({ error: "Article not found" });
+      }
+
+      // Check permissions
+      if (user.role !== "admin" && article.client_id !== user.client_id) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Use remark to parse markdown and extract all images robustly
+      const { remark } = await import('remark');
+      const remarkParse = (await import('remark-parse')).default;
+      const { visit } = await import('unist-util-visit');
+      
+      const imageMap = new Map<string, string>();
+      const definitions = new Map<string, string>();
+      let imageCounter = 1;
+      
+      // Parse the markdown AST
+      const processor = remark().use(remarkParse);
+      const tree = processor.parse(article.content);
+      
+      // First pass: collect all definitions for reference-style images
+      visit(tree, 'definition', (node: any) => {
+        if (node.identifier && node.url) {
+          definitions.set(node.identifier, node.url);
+        }
+      });
+      
+      // Second pass: visit all image nodes (both inline and reference-style)
+      visit(tree, ['image', 'imageReference'], (node: any) => {
+        let url = node.url;
+        
+        // For reference-style images, resolve the URL from definitions
+        if (node.type === 'imageReference' && node.identifier) {
+          url = definitions.get(node.identifier);
+          if (!url) return; // Skip if definition not found
+        }
+        
+        if (url && !imageMap.has(url)) {
+          const ext = url.split('.').pop()?.split('?')[0] || 'png';
+          const localName = `image-${imageCounter}.${ext}`;
+          imageMap.set(url, localName);
+          // Update the node's URL to local reference
+          if (node.type === 'image') {
+            node.url = localName;
+          } else if (node.type === 'imageReference') {
+            // Convert reference to inline image with local URL
+            node.type = 'image';
+            node.url = localName;
+            delete node.identifier;
+            delete node.referenceType;
+          }
+          imageCounter++;
+        } else if (url && imageMap.has(url)) {
+          // Reuse existing mapping for duplicate images
+          const localName = imageMap.get(url)!;
+          if (node.type === 'image') {
+            node.url = localName;
+          } else if (node.type === 'imageReference') {
+            // Convert reference to inline image
+            node.type = 'image';
+            node.url = localName;
+            delete node.identifier;
+            delete node.referenceType;
+          }
+        }
+      });
+      
+      // Remove definition nodes since we've converted references to inline
+      visit(tree, 'definition', (node: any, index: number, parent: any) => {
+        if (node.identifier && definitions.has(node.identifier)) {
+          // Remove this definition from parent's children
+          if (parent && parent.children && typeof index === 'number') {
+            parent.children.splice(index, 1);
+            return index; // Tell visitor to skip ahead
+          }
+        }
+      });
+      
+      // Serialize the AST back to markdown
+      const remarkStringify = (await import('remark-stringify')).default;
+      const processedContent = processor.use(remarkStringify).stringify(tree);
+
+      const frontmatter = [
+        '---',
+        `title: "${article.title.replace(/"/g, '\\"')}"`,
+        `slug: ${article.slug}`,
+        article.meta_description ? `description: "${article.meta_description.replace(/"/g, '\\"')}"` : null,
+        article.keywords && article.keywords.length > 0 ? `keywords: [${article.keywords.map(k => `"${k}"`).join(', ')}]` : null,
+        `status: ${article.status}`,
+        `created: ${article.created_at}`,
+        article.hero_image_url ? `hero_image: hero.png` : null,
+        '---',
+        ''
+      ].filter(Boolean).join('\n');
+
+      const markdown = frontmatter + processedContent;
+
+      // Create ZIP archive
+      const archive = archiver('zip', { zlib: { level: 9 } });
+      const filename = `${article.slug || `article-${article.id}`}.zip`;
+
+      res.attachment(filename);
+      archive.pipe(res);
+
+      // Add markdown file
+      archive.append(markdown, { name: `${article.slug || `article-${article.id}`}.md` });
+
+      // Download and add hero image if it exists
+      if (article.hero_image_url) {
+        try {
+          const imageResponse = await fetch(article.hero_image_url);
+          if (imageResponse.ok) {
+            const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+            archive.append(imageBuffer, { name: 'hero.png' });
+          }
+        } catch (error) {
+          console.warn('Failed to download hero image for export:', error);
+        }
+      }
+
+      // Download and add all embedded images
+      for (const [url, localName] of imageMap) {
+        try {
+          const imageResponse = await fetch(url);
+          if (imageResponse.ok) {
+            const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+            archive.append(imageBuffer, { name: localName });
+          }
+        } catch (error) {
+          console.warn(`Failed to download embedded image ${url}:`, error);
+        }
+      }
+
+      archive.finalize();
+    } catch (error) {
+      console.error("Error exporting article:", error);
+      res.status(500).json({ error: "Failed to export article" });
+    }
+  });
+
   // Get user profile
   app.get("/api/user/profile", async (req, res) => {
     try {
