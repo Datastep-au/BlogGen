@@ -62,7 +62,7 @@ export const articles = pgTable("articles", {
 
 export const usage_tracking = pgTable("usage_tracking", {
   id: serial("id").primaryKey(),
-  user_id: integer("user_id").notNull().references(() => users.id),
+  client_id: integer("client_id").notNull().references(() => clients.id),
   month: text("month").notNull(), // YYYY-MM format
   articles_generated: integer("articles_generated").default(0),
   limit: integer("limit").default(10),

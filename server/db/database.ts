@@ -103,7 +103,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createArticle(article: InsertArticle): Promise<Article> {
-    const result = await db.insert(articles).values([article]).returning();
+    const result = await db.insert(articles).values([article as any]).returning();
     return result[0];
   }
 
@@ -124,16 +124,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Usage tracking methods
-  async getUsageTracking(userId: number, month: string): Promise<UsageTracking | undefined> {
+  async getUsageTracking(clientId: number, month: string): Promise<UsageTracking | undefined> {
     const result = await db.select().from(usage_tracking)
-      .where(and(eq(usage_tracking.user_id, userId), eq(usage_tracking.month, month)))
+      .where(and(eq(usage_tracking.client_id, clientId), eq(usage_tracking.month, month)))
       .limit(1);
     return result[0];
   }
 
-  async updateUsageTracking(userId: number, month: string, incrementBy: number): Promise<UsageTracking> {
+  async updateUsageTracking(clientId: number, month: string, incrementBy: number): Promise<UsageTracking> {
     // Try to get existing record
-    const existing = await this.getUsageTracking(userId, month);
+    const existing = await this.getUsageTracking(clientId, month);
     
     if (existing) {
       // Update existing record
@@ -149,7 +149,7 @@ export class DatabaseStorage implements IStorage {
     } else {
       // Create new record
       const result = await db.insert(usage_tracking).values({
-        user_id: userId,
+        client_id: clientId,
         month,
         articles_generated: incrementBy,
         limit: 10,

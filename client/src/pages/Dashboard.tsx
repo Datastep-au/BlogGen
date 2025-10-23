@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, TrendingUp, Edit, Clock, Calendar, Eye, Type, Search, Download, Copy, Trash2, ChevronLeft, ChevronRight, MoreVertical } from 'lucide-react';
+import { FileText, TrendingUp, Edit, Clock, Calendar, Eye, Type, Search, Download, Copy, Trash2, ChevronLeft, ChevronRight, MoreVertical, Globe } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,7 @@ export default function Dashboard() {
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [viewingArticle, setViewingArticle] = useState<Article | null>(null);
   const [copyingArticle, setCopyingArticle] = useState<Article | null>(null);
+  const [siteInfo, setSiteInfo] = useState<any>(null);
   const [stats, setStats] = useState({
     total: 0,
     drafts: 0,
@@ -31,6 +32,7 @@ export default function Dashboard() {
   useEffect(() => {
     fetchArticles();
     fetchStats();
+    fetchSiteInfo();
   }, []);
 
   const fetchArticles = async () => {
@@ -95,6 +97,43 @@ export default function Dashboard() {
       setStats({ total, drafts, scheduled, published });
     } catch (error) {
       console.error('Error fetching stats:', error);
+    }
+  };
+
+  const fetchSiteInfo = async () => {
+    try {
+      if (!session?.access_token) {
+        return;
+      }
+
+      const profileResponse = await fetch('/api/user/profile', {
+        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        }
+      });
+
+      if (!profileResponse.ok) {
+        return;
+      }
+
+      const profile = await profileResponse.json();
+
+      if (profile.client_id) {
+        const siteResponse = await fetch(`/api/client/${profile.client_id}/site`, {
+          credentials: 'include',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+          }
+        });
+
+        if (siteResponse.ok) {
+          const siteData = await siteResponse.json();
+          setSiteInfo(siteData);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching site info:', error);
     }
   };
 
@@ -630,6 +669,45 @@ ${article.content}`;
           </Button>
         </div>
       </div>
+
+      {/* Site Information (for non-admin users) */}
+      {siteInfo && user?.role !== 'admin' && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 p-6">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <Globe className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900" data-testid="text-site-name">
+                  {siteInfo.name}
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">Connected Site</p>
+              </div>
+            </div>
+            <Badge 
+              variant={siteInfo.is_active ? "default" : "secondary"}
+              data-testid="badge-site-status"
+            >
+              {siteInfo.is_active ? 'Active' : 'Inactive'}
+            </Badge>
+          </div>
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-gray-500 uppercase tracking-wide">Domain</p>
+              <p className="text-sm font-medium text-gray-900 mt-1" data-testid="text-site-domain">
+                {siteInfo.domain || 'Not configured'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 uppercase tracking-wide">Storage Bucket</p>
+              <p className="text-sm font-medium text-gray-900 mt-1" data-testid="text-site-bucket">
+                {siteInfo.storage_bucket_name}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

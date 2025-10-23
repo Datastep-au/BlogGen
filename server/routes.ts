@@ -348,6 +348,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ==================== CLIENT ROUTES ====================
+  
+  // Get site info for user's client (for non-admin users)
+  app.get("/api/client/:clientId/site", requireClientAccess, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      const requestedClientId = parseInt(req.params.clientId);
+      
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Verify user has access to this client (either admin or belongs to the client)
+      if (user.role !== 'admin' && user.client_id !== requestedClientId) {
+        return res.status(403).json({ error: "You don't have access to this client's site" });
+      }
+
+      const sites = await storage.getSitesByClientId(requestedClientId);
+      if (sites.length === 0) {
+        return res.status(404).json({ error: "No site found for this client" });
+      }
+
+      // Return the first site (should be only one due to 1:1 relationship)
+      const site = sites[0];
+      res.json({
+        id: site.id,
+        name: site.name,
+        domain: site.domain,
+        storage_bucket_name: site.storage_bucket_name,
+        is_active: site.is_active,
+      });
+    } catch (error) {
+      console.error("Error fetching client site:", error);
+      res.status(500).json({ error: "Failed to fetch site" });
+    }
+  });
+
   // Generate article endpoint (with multi-tenant support)
   app.post("/api/generate-article", requireClientAccess, async (req, res) => {
     try {
@@ -371,12 +413,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "No client workspace assigned" });
       }
 
-      // Check monthly usage limit
+      // Check monthly usage limit (per client/site)
       const currentMonth = new Date().toISOString().substring(0, 7); // YYYY-MM
-      const usage = await storage.getUsageTracking(userId, currentMonth);
+      const usage = clientId ? await storage.getUsageTracking(clientId, currentMonth) : null;
       const topicsToGenerate = data.bulk_topics?.length || 1;
       
-      if (usage && (usage.articles_generated || 0) + topicsToGenerate > (usage.limit || 10)) {
+      if (clientId && usage && (usage.articles_generated || 0) + topicsToGenerate > (usage.limit || 10)) {
         return res.status(429).json({ 
           error: "Monthly limit exceeded",
           message: `You can only generate ${(usage.limit || 10) - (usage.articles_generated || 0)} more articles this month`
@@ -494,9 +536,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (req.body.generate_image) {
               const imagePrompt = req.body.image_prompt || 
                 `Professional blog hero image for article about: ${topic}. High quality, modern, visually appealing.`;
+              
               heroImageDescription = imagePrompt;
-              // In production, you would call an image generation API here
-              // heroImageUrl = await generateImage(imagePrompt);
+              
+              try {
+                // Import image generation functions
+                const { generateImage } = await import('./lib/openai');
+                const { downloadAndUploadImage } = await import('./lib/supabaseStorage');
+                
+                // Generate image with DALL-E
+                const generatedImage = await generateImage(imagePrompt);
+                
+                // Get site for this client to upload to the right bucket
+                if (clientId) {
+                  const sites = await storage.getSitesByClientId(clientId);
+                  const site = sites[0]; // One-to-one relationship
+                  
+                  if (site && site.storage_bucket_name) {
+                    // Download and upload to site's bucket
+                    const uploadResult = await downloadAndUploadImage(
+                      generatedImage.url,
+                      site.storage_bucket_name,
+                      `hero-${Date.now()}-${articles.indexOf(article)}.png`
+                    );
+                    
+                    if (uploadResult.success) {
+                      heroImageUrl = uploadResult.url!;
+                    } else {
+                      console.warn('Failed to upload image:', uploadResult.error);
+                      // Fall back to temporary DALL-E URL
+                      heroImageUrl = generatedImage.url;
+                    }
+                  } else {
+                    // No site bucket, use temporary DALL-E URL
+                    heroImageUrl = generatedImage.url;
+                  }
+                } else {
+                  // No client, use temporary DALL-E URL
+                  heroImageUrl = generatedImage.url;
+                }
+              } catch (error) {
+                console.error('Failed to generate hero image:', error);
+                // Continue without image
+              }
             }
             
             const createdArticle = await storage.createArticle({
@@ -536,9 +618,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Update usage tracking
-      if (generatedCount > 0) {
-        await storage.updateUsageTracking(userId, currentMonth, generatedCount);
+      // Update usage tracking (per client/site)
+      if (generatedCount > 0 && clientId) {
+        await storage.updateUsageTracking(clientId, currentMonth, generatedCount);
       }
 
       res.json({
@@ -886,8 +968,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Authentication required" });
       }
 
+      const user = await storage.getUser(userId);
+      if (!user || !user.client_id) {
+        return res.json({
+          count: 0,
+          limit: 10,
+          month: new Date().toISOString().substring(0, 7)
+        });
+      }
+
       const currentMonth = new Date().toISOString().substring(0, 7);
-      const usage = await storage.getUsageTracking(userId, currentMonth);
+      const usage = await storage.getUsageTracking(user.client_id, currentMonth);
       
       res.json({
         count: usage?.articles_generated || 0,

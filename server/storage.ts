@@ -32,8 +32,8 @@ export interface IStorage {
   deleteUserRepo(id: string): Promise<void>;
 
   // Usage tracking methods
-  getUsageTracking(userId: number, month: string): Promise<UsageTracking | undefined>;
-  updateUsageTracking(userId: number, month: string, incrementBy: number): Promise<UsageTracking>;
+  getUsageTracking(clientId: number, month: string): Promise<UsageTracking | undefined>;
+  updateUsageTracking(clientId: number, month: string, incrementBy: number): Promise<UsageTracking>;
 
   // Headless CMS - Site methods
   getSite(id: string): Promise<Site | undefined>;
@@ -308,13 +308,13 @@ export class MemStorage implements Partial<IStorage> {
   }
 
   // Usage tracking methods
-  async getUsageTracking(userId: number, month: string): Promise<UsageTracking | undefined> {
-    const key = `${userId}-${month}`;
+  async getUsageTracking(clientId: number, month: string): Promise<UsageTracking | undefined> {
+    const key = `${clientId}-${month}`;
     return this.usageTracking.get(key);
   }
 
-  async updateUsageTracking(userId: number, month: string, incrementBy: number): Promise<UsageTracking> {
-    const key = `${userId}-${month}`;
+  async updateUsageTracking(clientId: number, month: string, incrementBy: number): Promise<UsageTracking> {
+    const key = `${clientId}-${month}`;
     const existing = this.usageTracking.get(key);
     
     if (existing) {
@@ -330,7 +330,7 @@ export class MemStorage implements Partial<IStorage> {
       const now = new Date();
       const newUsage: UsageTracking = {
         id,
-        user_id: userId,
+        client_id: clientId,
         month,
         articles_generated: incrementBy,
         limit: 10,
