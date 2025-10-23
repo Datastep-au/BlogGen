@@ -12,7 +12,7 @@ import { format } from 'date-fns';
 import type { Article } from '@shared/schema';
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { toast } = useToast();
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,8 +36,16 @@ export default function Dashboard() {
   const fetchArticles = async () => {
     try {
       setLoading(true);
+      
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
+      }
+      
       const response = await fetch('/api/articles', {
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        }
       });
       
       if (!response.ok) {
@@ -60,8 +68,16 @@ export default function Dashboard() {
 
   const fetchStats = async () => {
     try {
+      if (!session?.access_token) {
+        console.error('Error fetching stats: Not authenticated');
+        return;
+      }
+      
       const response = await fetch('/api/articles', {
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        }
       });
       
       if (!response.ok) {
@@ -91,7 +107,7 @@ export default function Dashboard() {
   };
 
   const handleSaveArticle = async (articleData: Partial<Article>) => {
-    if (!editingArticle) return;
+    if (!editingArticle || !session?.access_token) return;
 
     try {
       const response = await fetch(`/api/articles/${editingArticle.id}`, {
@@ -99,6 +115,7 @@ export default function Dashboard() {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           title: articleData.title,
@@ -131,12 +148,15 @@ export default function Dashboard() {
   };
 
   const handleDeleteArticle = async (articleId: number) => {
-    if (!confirm('Are you sure you want to delete this article?')) return;
+    if (!confirm('Are you sure you want to delete this article?') || !session?.access_token) return;
 
     try {
       const response = await fetch(`/api/articles/${articleId}`, {
         method: 'DELETE',
         credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
       });
 
       if (!response.ok) {
@@ -193,12 +213,15 @@ ${article.content}`;
   };
 
   const handleStatusChange = async (articleId: number, newStatus: string) => {
+    if (!session?.access_token) return;
+
     try {
       const response = await fetch(`/api/articles/${articleId}`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           status: newStatus,
