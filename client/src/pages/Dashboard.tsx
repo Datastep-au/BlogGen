@@ -670,7 +670,7 @@ ${article.content}`;
                         {viewingArticle.scheduled_date ? format(new Date(viewingArticle.scheduled_date), "PPP") : "Pick a date"}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="end">
+                    <PopoverContent className="w-auto p-0 z-50" align="end" sideOffset={5}>
                       <Calendar
                         mode="single"
                         selected={viewingArticle.scheduled_date ? new Date(viewingArticle.scheduled_date) : undefined}
@@ -711,6 +711,7 @@ ${article.content}`;
                             }
                           }
                         }}
+                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                         initialFocus
                       />
                     </PopoverContent>
