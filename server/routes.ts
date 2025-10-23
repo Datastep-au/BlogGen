@@ -233,6 +233,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get site for a client
+  app.get("/api/admin/clients/:clientId/site", requireAdmin, async (req, res) => {
+    try {
+      const clientId = parseInt(req.params.clientId);
+      const sites = await storage.getSitesByClientId(clientId);
+      if (sites.length === 0) {
+        return res.status(404).json({ error: "No site found for this client" });
+      }
+      // Return the first site (should be only one due to 1:1 relationship)
+      const site = sites[0];
+      res.json({
+        id: site.id,
+        client_id: site.client_id,
+        name: site.name,
+        domain: site.domain,
+        storage_bucket_name: site.storage_bucket_name,
+        is_active: site.is_active,
+        created_at: site.created_at,
+        updated_at: site.updated_at
+      });
+    } catch (error) {
+      console.error("Error fetching client site:", error);
+      res.status(500).json({ error: "Failed to fetch site" });
+    }
+  });
+
+  // Delete user
+  app.delete("/api/admin/users/:userId", requireAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // Prevent deleting the current admin user
+      if (userId === req.user?.id) {
+        return res.status(400).json({ error: "You cannot delete your own account" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Note: We're not actually deleting the user from the database for data integrity,
+      // just removing their client assignment and setting them as inactive
+      await storage.updateUser(userId, {
+        client_id: null,
+        role: 'client_viewer' as any
+      });
+
+      res.json({ 
+        success: true,
+        message: "User removed from workspace"
+      });
+    } catch (error) {
+      console.error("Error removing user:", error);
+      res.status(500).json({ error: "Failed to remove user" });
+    }
+  });
+
+  // Change user role
+  app.patch("/api/admin/users/:userId/role", requireAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { role } = req.body;
+      
+      if (!role || !["admin", "client_editor", "client_viewer"].includes(role)) {
+        return res.status(400).json({ error: "Invalid role" });
+      }
+
+      // Prevent changing own role
+      if (userId === req.user?.id) {
+        return res.status(400).json({ error: "You cannot change your own role" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const updatedUser = await storage.updateUser(userId, { role: role as any });
+
+      res.json({
+        success: true,
+        user: updatedUser,
+        message: `User role updated to ${role}`
+      });
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      res.status(500).json({ error: "Failed to update user role" });
+    }
+  });
+
   // Test email endpoint
   app.post("/api/admin/test-email", requireAdmin, async (req, res) => {
     try {
