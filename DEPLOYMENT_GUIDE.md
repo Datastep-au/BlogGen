@@ -145,6 +145,188 @@ npm run db:push
 - Supabase (Neon-backed) recommended
 - Automatic schema migrations via Drizzle ORM
 
+---
+
+## Production Deployment - Phase 2 Updates
+
+### Critical Changes in Phase 2
+This deployment includes major security and schema updates. Follow this guide carefully.
+
+**What Changed**:
+- Row Level Security (RLS) enabled on all tables
+- New `site_members` table for many-to-many user-site relationships
+- Usage tracking moved from `client_id` to `site_id`
+- Authorization system uses site membership
+- Monthly limits moved to `sites` table
+
+### Pre-Deployment Checklist for Phase 2
+
+- [ ] **BACKUP DATABASE** - This is critical!
+  ```bash
+  pg_dump $DATABASE_URL > backup_$(date +%Y%m%d_%H%M%S).sql
+  ```
+- [ ] Review [IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)
+- [ ] Review [MIGRATION_PLAN.md](MIGRATION_PLAN.md)
+- [ ] Test on staging environment first
+- [ ] Create git tag for rollback: `git tag pre-phase2`
+
+### Step-by-Step Deployment
+
+#### 1. Run Database Migration
+```bash
+# Connect to database
+psql $DATABASE_URL
+
+# Run migration file
+psql $DATABASE_URL < migrations/0001_security_and_schema_fixes.sql
+```
+
+**Verify Migration**:
+```sql
+-- Check RLS is enabled
+SELECT tablename, rowsecurity FROM pg_tables
+WHERE schemaname = 'public' AND tablename IN ('users', 'articles', 'sites');
+-- Should show 't' for all
+
+-- Check site_members exists
+SELECT count(*) FROM site_members;
+
+-- Check new columns
+SELECT column_name FROM information_schema.columns
+WHERE table_name = 'sites'
+AND column_name IN ('monthly_article_limit', 'monthly_image_limit');
+```
+
+#### 2. Link Users to Supabase Auth
+
+**CRITICAL**: Every user must have a `supabase_user_id` to log in.
+
+```sql
+-- Get Supabase user IDs from auth.users
+SELECT id, email FROM auth.users;
+
+-- Link each user (replace with actual values)
+UPDATE users
+SET supabase_user_id = 'SUPABASE-UUID-HERE'
+WHERE email = 'user@example.com';
+
+-- Verify all users are linked
+SELECT email, supabase_user_id FROM users;
+```
+
+#### 3. Deploy Application Code
+```bash
+# Pull latest code
+git pull origin main
+
+# Install dependencies
+npm install
+
+# Build
+npm run build
+
+# Restart (depends on your platform)
+pm2 restart bloggen
+# OR
+docker-compose restart
+# OR
+systemctl restart bloggen
+```
+
+#### 4. Test Deployment
+
+**Test Admin Access**:
+1. Log in as admin
+2. Go to `/admin`
+3. Create a new client
+4. Invite a user - verify site_members record created
+
+**Test Editor Access**:
+1. Log in as editor
+2. Generate article - verify uses site_id
+3. Check usage tracking updated for site
+
+**Test Access Control**:
+1. Try logging in with uninvited user - should get 403
+2. Verify editors can only see their site's articles
+3. Verify viewers cannot edit
+
+#### 5. Verify RLS is Working
+```sql
+-- Test as regular user (replace UUID)
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claims TO '{"sub": "USER-UUID"}';
+
+SELECT * FROM articles;
+-- Should only see user's site articles
+
+RESET ROLE;
+```
+
+### Rollback Procedure
+
+If issues occur:
+
+```bash
+# Quick rollback - disable RLS
+psql $DATABASE_URL <<EOF
+ALTER TABLE users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE articles DISABLE ROW LEVEL SECURITY;
+ALTER TABLE sites DISABLE ROW LEVEL SECURITY;
+EOF
+
+# Full rollback - restore database
+psql $DATABASE_URL < backup_YYYYMMDD_HHMMSS.sql
+
+# Revert code
+git checkout pre-phase2
+npm install && npm run build
+pm2 restart bloggen
+```
+
+### Common Issues
+
+**Users Can't Log In (403)**:
+```sql
+-- Check user has supabase_user_id
+SELECT email, supabase_user_id FROM users WHERE email = 'user@example.com';
+
+-- Link if missing
+UPDATE users SET supabase_user_id = 'UUID' WHERE email = 'user@example.com';
+```
+
+**No Articles Showing**:
+```sql
+-- Check site membership
+SELECT * FROM site_members WHERE user_id = (SELECT id FROM users WHERE email = 'user@example.com');
+
+-- Add if missing
+INSERT INTO site_members (site_id, user_id, role)
+VALUES ('SITE-UUID', USER_ID, 'editor');
+```
+
+**Usage Tracking Not Working**:
+```sql
+-- Check usage_tracking has site_id
+SELECT * FROM usage_tracking WHERE site_id IS NULL;
+
+-- Fix if needed
+UPDATE usage_tracking SET site_id = (SELECT id FROM sites WHERE client_id = usage_tracking.old_client_id);
+```
+
+### Success Criteria
+
+Deployment successful when:
+- ✅ All users can log in
+- ✅ Admin sees all sites
+- ✅ Editors see only their sites
+- ✅ Uninvited users get 403
+- ✅ Usage tracking works
+- ✅ Monthly limits enforced
+- ✅ No errors in logs
+
+---
+
 ## Support
 
 For deployment issues:
@@ -152,3 +334,5 @@ For deployment issues:
 2. Verify all environment variables are set correctly
 3. Test database connection independently
 4. Ensure all secrets use correct variable names
+5. Review [IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md) for Phase 2 details
+6. Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md) if issues persist
