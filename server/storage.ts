@@ -1,4 +1,4 @@
-import { users, articles, usage_tracking, clients, user_repos, sites, posts, post_slugs, assets, webhooks, webhook_delivery_logs, scheduled_jobs, type User, type InsertUser, type Article, type InsertArticle, type UsageTracking, type InsertUsageTracking, type Client, type InsertClient, type UserRepo, type InsertUserRepo, type Site, type InsertSite, type Post, type InsertPost, type PostSlug, type InsertPostSlug, type Asset, type InsertAsset, type Webhook, type InsertWebhook, type WebhookDeliveryLog, type InsertWebhookDeliveryLog, type ScheduledJob, type InsertScheduledJob } from "@shared/schema";
+import { users, articles, usage_tracking, clients, user_repos, sites, site_members, posts, post_slugs, assets, webhooks, webhook_delivery_logs, scheduled_jobs, type User, type InsertUser, type Article, type InsertArticle, type UsageTracking, type InsertUsageTracking, type Client, type InsertClient, type UserRepo, type InsertUserRepo, type Site, type InsertSite, type SiteMember, type InsertSiteMember, type Post, type InsertPost, type PostSlug, type InsertPostSlug, type Asset, type InsertAsset, type Webhook, type InsertWebhook, type WebhookDeliveryLog, type InsertWebhookDeliveryLog, type ScheduledJob, type InsertScheduledJob } from "@shared/schema";
 
 export interface IStorage {
   // Client methods
@@ -32,8 +32,8 @@ export interface IStorage {
   deleteUserRepo(id: string): Promise<void>;
 
   // Usage tracking methods
-  getUsageTracking(clientId: number, month: string): Promise<UsageTracking | undefined>;
-  updateUsageTracking(clientId: number, month: string, incrementBy: number): Promise<UsageTracking>;
+  getUsageTracking(siteId: string, month: string): Promise<UsageTracking | undefined>;
+  updateUsageTracking(siteId: string, month: string, articlesIncrement?: number, imagesIncrement?: number): Promise<UsageTracking>;
 
   // Headless CMS - Site methods
   getSite(id: string): Promise<Site | undefined>;
@@ -43,6 +43,15 @@ export interface IStorage {
   createSite(site: Omit<InsertSite, 'api_key_hash' | 'storage_bucket_name'> & { api_key_hash: string; storage_bucket_name: string }): Promise<Site>;
   updateSite(id: string, updates: Partial<Site>): Promise<Site>;
   deleteSite(id: string): Promise<void>;
+
+  // Site member methods
+  getSiteMember(id: string): Promise<SiteMember | undefined>;
+  getSiteMembersBySiteId(siteId: string): Promise<SiteMember[]>;
+  getSiteMembersByUserId(userId: number): Promise<SiteMember[]>;
+  getSiteMemberBySiteAndUser(siteId: string, userId: number): Promise<SiteMember | undefined>;
+  createSiteMember(siteMember: InsertSiteMember): Promise<SiteMember>;
+  updateSiteMember(id: string, updates: Partial<SiteMember>): Promise<SiteMember>;
+  deleteSiteMember(id: string): Promise<void>;
 
   // Headless CMS - Post methods
   getPost(id: string): Promise<Post | undefined>;

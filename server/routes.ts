@@ -267,12 +267,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Invite user to client workspace
+  // Invite user to client workspace (creates site_member record)
   app.post("/api/admin/clients/:clientId/invite", requireAdmin, async (req, res) => {
     try {
-      const { email, role = "client_editor" } = req.body;
+      const { email, role = "client_editor", site_role = "editor" } = req.body;
       const clientId = parseInt(req.params.clientId);
-      
+
       if (!email) {
         return res.status(400).json({ error: "Email is required" });
       }
@@ -283,30 +283,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Client not found" });
       }
 
+      // Get the site for this client (1:1 relationship)
+      const sites = await storage.getSitesByClientId(clientId);
+      if (sites.length === 0) {
+        return res.status(404).json({ error: "No site found for this client. Please create a site first." });
+      }
+      const site = sites[0];
+
       // Check if user already exists
       let user = await storage.getUserByEmail(email);
       let isNewUser = false;
-      
+
       if (user) {
-        // Update existing user's client assignment
-        user = await storage.updateUser(user.id, {
-          client_id: clientId,
-          role: role as any,
-        });
+        // User exists - just add them to the site
+        // Keep their client_id for backwards compatibility (will be deprecated later)
+        if (!user.client_id) {
+          user = await storage.updateUser(user.id, {
+            client_id: clientId,
+            role: role as any,
+          });
+        }
       } else {
-        // Create new user
+        // Create new user (will be able to log in after Supabase account is created)
         user = await storage.createUser({
           email,
-          client_id: clientId,
+          client_id: clientId, // For backwards compatibility
           role: role as any,
         });
         isNewUser = true;
       }
 
+      // Check if user is already a member of this site
+      const existingMembership = await storage.getSiteMemberBySiteAndUser(site.id, user.id);
+      if (existingMembership) {
+        // Update existing membership
+        await storage.updateSiteMember(existingMembership.id, {
+          role: site_role as any,
+        });
+      } else {
+        // Create new site membership
+        await storage.createSiteMember({
+          site_id: site.id,
+          user_id: user.id,
+          role: site_role as any,
+        });
+      }
+
       // Send invitation email
       const currentUser = await storage.getUser(req.user!.id);
       const inviterName = currentUser?.full_name || currentUser?.email || 'BlogGen Admin';
-      
+
       const emailResult = await emailService.sendInvitationEmail(
         email,
         user.full_name || email.split('@')[0], // Use name or email prefix
@@ -323,10 +349,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         success: true,
         user,
+        site: {
+          id: site.id,
+          name: site.name,
+        },
+        site_role,
         emailSent: emailResult.success,
-        message: emailResult.success 
-          ? `User ${email} has been invited to ${client.name} workspace and an invitation email has been sent`
-          : `User ${email} has been added to ${client.name} workspace, but email delivery failed`
+        message: emailResult.success
+          ? `User ${email} has been invited to ${client.name} (${site.name}) and an invitation email has been sent`
+          : `User ${email} has been added to ${client.name} (${site.name}), but email delivery failed`
       });
     } catch (error) {
       console.error("Error inviting user:", error);
