@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateBlogArticle, generateMultipleBlogArticles } from "./lib/openai";
-import { insertArticleSchema, insertClientSchema } from "@shared/schema";
+import { insertArticleSchema, insertClientSchema, type Article } from "@shared/schema";
 import { z } from "zod";
 import { githubService } from "./services/github";
 import { emailService } from "./services/email";
@@ -51,6 +51,48 @@ const requireClientAccess = async (req: any, res: any, next: any) => {
   req.clientId = user.client_id;
   next();
 };
+
+const HERO_IMAGE_TYPE_EXTENSION: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/jpg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+async function prepareHeroImageForCommit(article: Article) {
+  const heroUrl = article.hero_image_url;
+
+  if (!heroUrl || !/^https?:\/\//i.test(heroUrl)) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(heroUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to download hero image: ${response.status} ${response.statusText}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const contentType = response.headers.get("content-type") || "";
+    const extension =
+      HERO_IMAGE_TYPE_EXTENSION[contentType.toLowerCase()] ||
+      (heroUrl.split(/[?#]/)[0].match(/\.([a-z0-9]+)$/i)?.[1] ?? "jpg");
+
+    const normalizedExtension = extension.replace(/[^a-z0-9]/gi, "").toLowerCase() || "jpg";
+    const slug = article.slug || article.title.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
+    const fileName = `${slug}-hero.${normalizedExtension}`;
+
+    return {
+      fileName,
+      data: buffer,
+      frontMatterPath: `/images/${fileName}`,
+    };
+  } catch (error) {
+    console.warn("Failed to prepare hero image for commit:", error);
+    return null;
+  }
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // ==================== ADMIN ROUTES ====================
@@ -510,7 +552,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (clientId && req.body.commit_to_repo) {
             const client = await storage.getClient(clientId);
             if (client && client.repo_url) {
-              const commitResult = await githubService.commitPost(client, createdArticle);
+              const heroImageData = await prepareHeroImageForCommit(createdArticle);
+              const commitResult = await githubService.commitPost(
+                client,
+                createdArticle,
+                heroImageData ?? undefined
+              );
               if (!commitResult.success) {
                 errors.push(`Warning: Article created but failed to commit to GitHub: ${commitResult.error}`);
               }
@@ -605,7 +652,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (clientId && req.body.commit_to_repo) {
               const client = await storage.getClient(clientId);
               if (client && client.repo_url) {
-                const commitResult = await githubService.commitPost(client, createdArticle);
+                const heroImageData = await prepareHeroImageForCommit(createdArticle);
+                const commitResult = await githubService.commitPost(
+                  client,
+                  createdArticle,
+                  heroImageData ?? undefined
+                );
                 if (!commitResult.success) {
                   errors.push(`Warning: Article "${article.title}" created but failed to commit: ${commitResult.error}`);
                 }
@@ -724,7 +776,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (updateData.status === "published" && req.body.commit_to_repo) {
         const client = article.client_id ? await storage.getClient(article.client_id) : null;
         if (client && client.repo_url) {
-          await githubService.commitPost(client, updatedArticle);
+          const heroImageData = await prepareHeroImageForCommit(updatedArticle);
+          await githubService.commitPost(
+            client,
+            updatedArticle,
+            heroImageData ?? undefined
+          );
         }
       }
 
