@@ -20,6 +20,8 @@ export interface IStorage {
   getAllArticles(): Promise<Article[]>;
   getArticlesByUserId(userId: number): Promise<Article[]>;
   getArticlesByClientId(clientId: number): Promise<Article[]>;
+  getArticlesBySiteId(siteId: string): Promise<Article[]>;
+  getArticlesBySiteIds(siteIds: string[]): Promise<Article[]>;
   createArticle(article: InsertArticle): Promise<Article>;
   updateArticle(id: number, updates: Partial<Article>): Promise<Article>;
   deleteArticle(id: number): Promise<void>;

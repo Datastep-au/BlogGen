@@ -178,3 +178,62 @@ export async function canEditArticle(userId: number, articleId: number): Promise
 
   return await canEditSite(userId, siteId);
 }
+
+/**
+ * Get primary site for user (first site they're a member of, or any site if admin)
+ * Used when creating content without explicit site selection
+ */
+export async function getPrimarySiteForUser(userId: number): Promise<string | null> {
+  // Admins: return first available site or null
+  if (await isAdmin(userId)) {
+    const sites = await storage.getAllSites();
+    return sites.length > 0 ? sites[0].id : null;
+  }
+
+  // Regular users: return first site they're a member of
+  const memberships = await storage.getSiteMembersByUserId(userId);
+  if (memberships.length === 0) {
+    return null;
+  }
+
+  return memberships[0].site_id;
+}
+
+/**
+ * Get site and validate user has edit access
+ * Returns site if user can edit, throws error otherwise
+ */
+export async function getSiteWithEditAccess(userId: number, siteId?: string, clientId?: number): Promise<{site: any, canEdit: boolean}> {
+  let site;
+
+  // If siteId provided, use it
+  if (siteId) {
+    site = await storage.getSite(siteId);
+    if (!site) {
+      throw new Error('Site not found');
+    }
+  }
+  // If clientId provided (backwards compat), get site from client
+  else if (clientId) {
+    const sites = await storage.getSitesByClientId(clientId);
+    if (sites.length === 0) {
+      throw new Error('No site found for this client');
+    }
+    site = sites[0];
+  }
+  // Otherwise, get user's primary site
+  else {
+    const primarySiteId = await getPrimarySiteForUser(userId);
+    if (!primarySiteId) {
+      throw new Error('No site assigned to user');
+    }
+    site = await storage.getSite(primarySiteId);
+    if (!site) {
+      throw new Error('Site not found');
+    }
+  }
+
+  const canEdit = await canEditSite(userId, site.id);
+
+  return { site, canEdit };
+}

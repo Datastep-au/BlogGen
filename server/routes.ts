@@ -403,11 +403,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete user
+  // Delete/remove user
   app.delete("/api/admin/users/:userId", requireAdmin, async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
-      
+
       // Prevent deleting the current admin user
       if (userId === req.user?.id) {
         return res.status(400).json({ error: "You cannot delete your own account" });
@@ -418,16 +418,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
 
-      // Note: We're not actually deleting the user from the database for data integrity,
-      // just removing their client assignment and setting them as inactive
+      // Remove all site memberships
+      const memberships = await storage.getSiteMembersByUserId(userId);
+      for (const membership of memberships) {
+        await storage.deleteSiteMember(membership.id);
+      }
+
+      // Remove client assignment and downgrade role
       await storage.updateUser(userId, {
         client_id: null,
         role: 'client_viewer' as any
       });
 
-      res.json({ 
+      res.json({
         success: true,
-        message: "User removed from workspace"
+        message: "User removed from all sites and workspaces"
       });
     } catch (error) {
       console.error("Error removing user:", error);
@@ -550,23 +555,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Authentication required" });
       }
 
-      // Get client ID (either from user's assignment or admin's selection)
+      // Get site (supports both site_id and client_id for backwards compat)
+      const { getSiteWithEditAccess } = await import('./lib/authorization');
+      const siteId = req.body.site_id;
       const clientId = req.body.client_id || user.client_id;
-      
-      if (!clientId && user.role !== "admin") {
-        return res.status(400).json({ error: "No client workspace assigned" });
+
+      let site;
+      try {
+        const result = await getSiteWithEditAccess(userId, siteId, clientId);
+        site = result.site;
+        if (!result.canEdit) {
+          return res.status(403).json({ error: "You don't have permission to create articles in this site" });
+        }
+      } catch (error) {
+        return res.status(400).json({
+          error: error instanceof Error ? error.message : "Failed to determine site"
+        });
       }
 
-      // Check monthly usage limit (per client/site)
+      // Check monthly usage limit (per site)
       const currentMonth = new Date().toISOString().substring(0, 7); // YYYY-MM
-      const usage = clientId ? await storage.getUsageTracking(clientId, currentMonth) : null;
+      const usage = await storage.getUsageTracking(site.id, currentMonth);
       const topicsToGenerate = data.bulk_topics?.length || 1;
-      
-      if (clientId && usage && (usage.articles_generated || 0) + topicsToGenerate > (usage.limit || 10)) {
-        return res.status(429).json({ 
-          error: "Monthly limit exceeded",
-          message: `You can only generate ${(usage.limit || 10) - (usage.articles_generated || 0)} more articles this month`
+      const imagesToGenerate = req.body.generate_image ? topicsToGenerate : 0;
+
+      // Check article limit
+      const articlesGenerated = usage?.articles_generated || 0;
+      const articleLimit = site.monthly_article_limit || 50;
+
+      if (articlesGenerated + topicsToGenerate > articleLimit) {
+        return res.status(429).json({
+          error: "Monthly article limit exceeded",
+          message: `You can only generate ${articleLimit - articlesGenerated} more articles this month (limit: ${articleLimit})`
         });
+      }
+
+      // Check image limit if generating images
+      if (req.body.generate_image) {
+        const imagesGenerated = usage?.images_generated || 0;
+        const imageLimit = site.monthly_image_limit || 100;
+
+        if (imagesGenerated + imagesToGenerate > imageLimit) {
+          return res.status(429).json({
+            error: "Monthly image limit exceeded",
+            message: `You can only generate ${imageLimit - imagesGenerated} more images this month (limit: ${imageLimit})`
+          });
+        }
       }
 
       let generatedCount = 0;
@@ -596,32 +630,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Generate image with DALL-E
               const generatedImage = await generateImage(imagePrompt);
               
-              // Get site for this client to upload to the right bucket
-              if (clientId) {
-                const sites = await storage.getSitesByClientId(clientId);
-                const site = sites[0]; // One-to-one relationship
-                
-                if (site && site.storage_bucket_name) {
-                  // Download and upload to site's bucket
-                  const uploadResult = await downloadAndUploadImage(
-                    generatedImage.url,
-                    site.storage_bucket_name,
-                    `hero-${Date.now()}.png`
-                  );
-                  
-                  if (uploadResult.success) {
-                    heroImageUrl = uploadResult.url!;
-                  } else {
-                    console.warn('Failed to upload image:', uploadResult.error);
-                    // Fall back to temporary DALL-E URL
-                    heroImageUrl = generatedImage.url;
-                  }
+              // Upload to site's storage bucket
+              if (site && site.storage_bucket_name) {
+                // Download and upload to site's bucket
+                const uploadResult = await downloadAndUploadImage(
+                  generatedImage.url,
+                  site.storage_bucket_name,
+                  `hero-${Date.now()}.png`
+                );
+
+                if (uploadResult.success) {
+                  heroImageUrl = uploadResult.url!;
                 } else {
-                  // No site bucket, use temporary DALL-E URL
+                  console.warn('Failed to upload image:', uploadResult.error);
+                  // Fall back to temporary DALL-E URL
                   heroImageUrl = generatedImage.url;
                 }
               } else {
-                // No client, use temporary DALL-E URL
+                // No site bucket, use temporary DALL-E URL
                 heroImageUrl = generatedImage.url;
               }
             } catch (error) {
@@ -632,7 +658,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           const createdArticle = await storage.createArticle({
             user_id: userId,
-            client_id: clientId,
+            site_id: site.id,
+            client_id: site.client_id, // Backwards compat
             slug: article.title.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-"),
             title: article.title,
             content: article.content,
@@ -651,8 +678,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           generatedCount = 1;
 
           // Commit to GitHub if client has a repo
-          if (clientId && req.body.commit_to_repo) {
-            const client = await storage.getClient(clientId);
+          if (req.body.commit_to_repo) {
+            const client = await storage.getClient(site.client_id);
             if (client && client.repo_url) {
               const heroImageData = await prepareHeroImageForCommit(createdArticle);
               const commitResult = await githubService.commitPost(
@@ -696,32 +723,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 // Generate image with DALL-E
                 const generatedImage = await generateImage(imagePrompt);
                 
-                // Get site for this client to upload to the right bucket
-                if (clientId) {
-                  const sites = await storage.getSitesByClientId(clientId);
-                  const site = sites[0]; // One-to-one relationship
-                  
-                  if (site && site.storage_bucket_name) {
-                    // Download and upload to site's bucket
-                    const uploadResult = await downloadAndUploadImage(
-                      generatedImage.url,
-                      site.storage_bucket_name,
-                      `hero-${Date.now()}-${articles.indexOf(article)}.png`
-                    );
-                    
-                    if (uploadResult.success) {
-                      heroImageUrl = uploadResult.url!;
-                    } else {
-                      console.warn('Failed to upload image:', uploadResult.error);
-                      // Fall back to temporary DALL-E URL
-                      heroImageUrl = generatedImage.url;
-                    }
+                // Upload to site's storage bucket
+                if (site && site.storage_bucket_name) {
+                  // Download and upload to site's bucket
+                  const uploadResult = await downloadAndUploadImage(
+                    generatedImage.url,
+                    site.storage_bucket_name,
+                    `hero-${Date.now()}-${articles.indexOf(article)}.png`
+                  );
+
+                  if (uploadResult.success) {
+                    heroImageUrl = uploadResult.url!;
                   } else {
-                    // No site bucket, use temporary DALL-E URL
+                    console.warn('Failed to upload image:', uploadResult.error);
+                    // Fall back to temporary DALL-E URL
                     heroImageUrl = generatedImage.url;
                   }
                 } else {
-                  // No client, use temporary DALL-E URL
+                  // No site bucket, use temporary DALL-E URL
                   heroImageUrl = generatedImage.url;
                 }
               } catch (error) {
@@ -732,7 +751,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             const createdArticle = await storage.createArticle({
               user_id: userId,
-              client_id: clientId,
+              site_id: site.id,
+              client_id: site.client_id, // Backwards compat
               slug: article.title.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-"),
               title: article.title,
               content: article.content,
@@ -751,8 +771,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             generatedCount++;
 
             // Commit to GitHub if requested
-            if (clientId && req.body.commit_to_repo) {
-              const client = await storage.getClient(clientId);
+            if (req.body.commit_to_repo) {
+              const client = await storage.getClient(site.client_id);
               if (client && client.repo_url) {
                 const heroImageData = await prepareHeroImageForCommit(createdArticle);
                 const commitResult = await githubService.commitPost(
@@ -772,9 +792,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Update usage tracking (per client/site)
-      if (generatedCount > 0 && clientId) {
-        await storage.updateUsageTracking(clientId, currentMonth, generatedCount);
+      // Update usage tracking (per site)
+      if (generatedCount > 0) {
+        const actualImagesGenerated = req.body.generate_image ? generatedCount : 0;
+        await storage.updateUsageTracking(site.id, currentMonth, generatedCount, actualImagesGenerated);
       }
 
       res.json({
@@ -796,37 +817,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get user articles (with multi-tenant filtering)
+  // Get user articles (with site-based filtering)
   app.get("/api/articles", requireClientAccess, async (req, res) => {
     try {
       const userId = req.user?.id;
-      
+
       if (!userId) {
         return res.status(401).json({ error: "Authentication required" });
       }
-      
+
       const user = await storage.getUser(userId);
-      
+
       if (!user) {
         return res.status(401).json({ error: "Authentication required" });
       }
 
+      const { getUserSites } = await import('./lib/authorization');
+
       let articles: any[];
       if (user.role === "admin") {
-        // Admin can see all articles or filter by client
+        // Admin can see all articles or filter by site/client
+        const siteId = req.query.site_id as string;
         const clientId = req.query.client_id ? parseInt(req.query.client_id as string) : null;
-        if (clientId) {
+
+        if (siteId) {
+          articles = await storage.getArticlesBySiteId(siteId);
+        } else if (clientId) {
           articles = await storage.getArticlesByClientId(clientId);
         } else {
-          articles = await storage.getArticlesByUserId(userId);
+          articles = await storage.getAllArticles();
         }
       } else {
-        // Client users see only their client's articles
-        if (user.client_id) {
-          articles = await storage.getArticlesByClientId(user.client_id);
-        } else {
-          articles = [];
-        }
+        // Regular users see articles from their sites
+        const userSites = await getUserSites(userId);
+        const siteIds = userSites.map(s => s.id);
+        articles = await storage.getArticlesBySiteIds(siteIds);
       }
 
       res.json(articles);
@@ -836,54 +861,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update article (with multi-tenant access control)
+  // Update article (with site-based access control)
   app.put("/api/articles/:id", requireClientAccess, async (req, res) => {
     try {
       const userId = req.user?.id;
-      
+
       if (!userId) {
-        return res.status(401).json({ error: "Authentication required" });
-      }
-      
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
         return res.status(401).json({ error: "Authentication required" });
       }
 
       const articleId = parseInt(req.params.id);
       const updateData = req.body;
 
-      // Verify article access
+      // Verify article exists
       const article = await storage.getArticle(articleId);
       if (!article) {
         return res.status(404).json({ error: "Article not found" });
       }
 
-      // Check permissions
-      if (user.role !== "admin") {
-        // Client users can only edit articles in their workspace
-        if (article.client_id !== user.client_id) {
-          return res.status(403).json({ error: "Access denied" });
-        }
-        // Client viewers cannot edit
-        if (user.role === "client_viewer") {
-          return res.status(403).json({ error: "Viewers cannot edit articles" });
-        }
+      // Check edit permission
+      const { canEditArticle } = await import('./lib/authorization');
+      if (!(await canEditArticle(userId, articleId))) {
+        return res.status(403).json({ error: "You don't have permission to edit this article" });
       }
 
       const updatedArticle = await storage.updateArticle(articleId, updateData);
 
       // Commit to GitHub if requested and status changed to published
-      if (updateData.status === "published" && req.body.commit_to_repo) {
-        const client = article.client_id ? await storage.getClient(article.client_id) : null;
-        if (client && client.repo_url) {
-          const heroImageData = await prepareHeroImageForCommit(updatedArticle);
-          await githubService.commitPost(
-            client,
-            updatedArticle,
-            heroImageData ?? undefined
-          );
+      if (updateData.status === "published" && req.body.commit_to_repo && article.site_id) {
+        const site = await storage.getSite(article.site_id);
+        if (site) {
+          const client = await storage.getClient(site.client_id);
+          if (client && client.repo_url) {
+            const heroImageData = await prepareHeroImageForCommit(updatedArticle);
+            await githubService.commitPost(
+              client,
+              updatedArticle,
+              heroImageData ?? undefined
+            );
+          }
         }
       }
 
@@ -894,39 +910,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete article (with multi-tenant access control)
+  // Delete article (with site-based access control)
   app.delete("/api/articles/:id", requireClientAccess, async (req, res) => {
     try {
       const userId = req.user?.id;
-      
+
       if (!userId) {
-        return res.status(401).json({ error: "Authentication required" });
-      }
-      
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
         return res.status(401).json({ error: "Authentication required" });
       }
 
       const articleId = parseInt(req.params.id);
 
-      // Verify article access
+      // Verify article exists
       const article = await storage.getArticle(articleId);
       if (!article) {
         return res.status(404).json({ error: "Article not found" });
       }
 
-      // Check permissions
-      if (user.role !== "admin") {
-        // Client users can only delete articles in their workspace
-        if (article.client_id !== user.client_id) {
-          return res.status(403).json({ error: "Access denied" });
-        }
-        // Client viewers cannot delete
-        if (user.role === "client_viewer") {
-          return res.status(403).json({ error: "Viewers cannot delete articles" });
-        }
+      // Check edit permission (delete requires edit access)
+      const { canEditArticle } = await import('./lib/authorization');
+      if (!(await canEditArticle(userId, articleId))) {
+        return res.status(403).json({ error: "You don't have permission to delete this article" });
       }
 
       await storage.deleteArticle(articleId);

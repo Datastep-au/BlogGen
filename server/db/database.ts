@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { users, articles, usage_tracking, clients, user_repos, sites, site_members, posts, post_slugs, assets, webhooks, webhook_delivery_logs, scheduled_jobs, type User, type InsertUser, type Article, type InsertArticle, type UsageTracking, type InsertUsageTracking, type Client, type InsertClient, type UserRepo, type InsertUserRepo, type Site, type InsertSite, type SiteMember, type InsertSiteMember, type Post, type InsertPost, type PostSlug, type InsertPostSlug, type Asset, type InsertAsset, type Webhook, type InsertWebhook, type WebhookDeliveryLog, type InsertWebhookDeliveryLog, type ScheduledJob, type InsertScheduledJob } from '@shared/schema';
-import { eq, and, lte, desc, isNull, gt } from 'drizzle-orm';
+import { eq, and, lte, desc, isNull, gt, inArray } from 'drizzle-orm';
 import type { IStorage } from '../storage';
 
 // Use DATABASE_URL which connects to the working heliumdb database
@@ -100,6 +100,21 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(articles)
       .where(eq(articles.client_id, clientId))
       .orderBy(articles.created_at);
+  }
+
+  async getArticlesBySiteId(siteId: string): Promise<Article[]> {
+    return await db.select().from(articles)
+      .where(eq(articles.site_id, siteId))
+      .orderBy(desc(articles.created_at));
+  }
+
+  async getArticlesBySiteIds(siteIds: string[]): Promise<Article[]> {
+    if (siteIds.length === 0) {
+      return [];
+    }
+    return await db.select().from(articles)
+      .where(inArray(articles.site_id, siteIds))
+      .orderBy(desc(articles.created_at));
   }
 
   async createArticle(article: InsertArticle): Promise<Article> {
