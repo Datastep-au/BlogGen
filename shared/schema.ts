@@ -5,6 +5,9 @@ import { z } from "zod";
 // Enum for user roles
 export const userRoleEnum = pgEnum("user_role", ["admin", "client_editor", "client_viewer"]);
 
+// Enum for site roles (for site_members table)
+export const siteRoleEnum = pgEnum("site_role", ["owner", "editor", "viewer"]);
+
 // Enum for generation mode
 export const generationModeEnum = pgEnum("generation_mode", ["ai", "manual", "mixed"]);
 
@@ -30,20 +33,22 @@ export const clients = pgTable("clients", {
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
+  supabase_user_id: uuid("supabase_user_id").unique(), // References auth.users for RLS
   email: text("email").notNull().unique(),
   full_name: text("full_name"),
   avatar_url: text("avatar_url"),
   role: userRoleEnum("role").default("client_editor").notNull(),
-  client_id: integer("client_id").references(() => clients.id), // nullable for admins
+  client_id: integer("client_id").references(() => clients.id), // nullable for admins (deprecated in favor of site_members)
   created_at: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const articles = pgTable("articles", {
   id: serial("id").primaryKey(),
   user_id: integer("user_id").notNull().references(() => users.id),
-  client_id: integer("client_id").references(() => clients.id), // For multi-tenancy
+  client_id: integer("client_id").references(() => clients.id), // For multi-tenancy (deprecated)
+  site_id: uuid("site_id").notNull().references(() => sites.id), // Direct site reference
   title: text("title").notNull(),
-  slug: text("slug").notNull().unique(), // URL-friendly version of title
+  slug: text("slug").notNull(), // URL-friendly version of title (unique per site)
   excerpt: text("excerpt"), // Short description/summary
   content: text("content").notNull(),
   meta_description: text("meta_description"),
@@ -58,17 +63,31 @@ export const articles = pgTable("articles", {
   word_count: integer("word_count").default(0),
   created_at: timestamp("created_at").defaultNow().notNull(),
   updated_at: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  siteSlugUnique: {
+    name: "articles_site_slug_unique",
+    columns: [table.site_id, table.slug]
+  }
+}));
 
 export const usage_tracking = pgTable("usage_tracking", {
   id: serial("id").primaryKey(),
-  client_id: integer("client_id").notNull().references(() => clients.id),
+  site_id: uuid("site_id").notNull().references(() => sites.id), // Track by site
   month: text("month").notNull(), // YYYY-MM format
   articles_generated: integer("articles_generated").default(0),
-  limit: integer("limit").default(10),
+  images_generated: integer("images_generated").default(0),
+  // Deprecated fields (kept for rollback)
+  old_client_id: integer("old_client_id"),
+  old_user_id: integer("old_user_id"),
+  // Removed: limit (now stored in sites table)
   created_at: timestamp("created_at").defaultNow().notNull(),
   updated_at: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  siteMonthUnique: {
+    name: "usage_tracking_site_month_unique",
+    columns: [table.site_id, table.month]
+  }
+}));
 
 // User repositories table for managing deploy targets
 export const user_repos = pgTable("user_repos", {
@@ -93,9 +112,25 @@ export const sites = pgTable("sites", {
   storage_bucket_name: text("storage_bucket_name").notNull(), // Dedicated Supabase storage bucket
   api_key_hash: text("api_key_hash").notNull(), // bcrypt hash of API key
   is_active: boolean("is_active").default(true).notNull(),
+  monthly_article_limit: integer("monthly_article_limit").default(50).notNull(),
+  monthly_image_limit: integer("monthly_image_limit").default(100).notNull(),
   created_at: timestamp("created_at").defaultNow().notNull(),
   updated_at: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// Site members table for many-to-many user-site relationships
+export const site_members = pgTable("site_members", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  site_id: uuid("site_id").notNull().references(() => sites.id, { onDelete: "cascade" }),
+  user_id: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  role: siteRoleEnum("role").default("editor").notNull(),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  siteUserUnique: {
+    name: "site_members_site_user_unique",
+    columns: [table.site_id, table.user_id]
+  }
+}));
 
 // Posts table for headless CMS
 export const posts = pgTable("posts", {
@@ -219,6 +254,11 @@ export const insertSiteSchema = createInsertSchema(sites).omit({
   updated_at: true,
 });
 
+export const insertSiteMemberSchema = createInsertSchema(site_members).omit({
+  id: true,
+  created_at: true,
+});
+
 export const insertPostSchema = createInsertSchema(posts).omit({
   id: true,
   updated_at: true,
@@ -263,6 +303,8 @@ export type UserRepo = typeof user_repos.$inferSelect;
 // Headless CMS types
 export type InsertSite = z.infer<typeof insertSiteSchema>;
 export type Site = typeof sites.$inferSelect;
+export type InsertSiteMember = z.infer<typeof insertSiteMemberSchema>;
+export type SiteMember = typeof site_members.$inferSelect;
 export type InsertPost = z.infer<typeof insertPostSchema>;
 export type Post = typeof posts.$inferSelect;
 export type InsertPostSlug = z.infer<typeof insertPostSlugSchema>;
@@ -278,6 +320,7 @@ export type ScheduledJob = typeof scheduled_jobs.$inferSelect;
 
 // Export enum types
 export type UserRole = "admin" | "client_editor" | "client_viewer";
+export type SiteRole = "owner" | "editor" | "viewer";
 export type GenerationMode = "ai" | "manual" | "mixed";
 export type ArticleStatus = "draft" | "scheduled" | "published";
 export type PostStatus = "draft" | "scheduled" | "published" | "archived";

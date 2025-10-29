@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { users, articles, usage_tracking, clients, user_repos, sites, posts, post_slugs, assets, webhooks, webhook_delivery_logs, scheduled_jobs, type User, type InsertUser, type Article, type InsertArticle, type UsageTracking, type InsertUsageTracking, type Client, type InsertClient, type UserRepo, type InsertUserRepo, type Site, type InsertSite, type Post, type InsertPost, type PostSlug, type InsertPostSlug, type Asset, type InsertAsset, type Webhook, type InsertWebhook, type WebhookDeliveryLog, type InsertWebhookDeliveryLog, type ScheduledJob, type InsertScheduledJob } from '@shared/schema';
+import { users, articles, usage_tracking, clients, user_repos, sites, site_members, posts, post_slugs, assets, webhooks, webhook_delivery_logs, scheduled_jobs, type User, type InsertUser, type Article, type InsertArticle, type UsageTracking, type InsertUsageTracking, type Client, type InsertClient, type UserRepo, type InsertUserRepo, type Site, type InsertSite, type SiteMember, type InsertSiteMember, type Post, type InsertPost, type PostSlug, type InsertPostSlug, type Asset, type InsertAsset, type Webhook, type InsertWebhook, type WebhookDeliveryLog, type InsertWebhookDeliveryLog, type ScheduledJob, type InsertScheduledJob } from '@shared/schema';
 import { eq, and, lte, desc, isNull, gt } from 'drizzle-orm';
 import type { IStorage } from '../storage';
 
@@ -124,37 +124,38 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Usage tracking methods
-  async getUsageTracking(clientId: number, month: string): Promise<UsageTracking | undefined> {
+  async getUsageTracking(siteId: string, month: string): Promise<UsageTracking | undefined> {
     const result = await db.select().from(usage_tracking)
-      .where(and(eq(usage_tracking.client_id, clientId), eq(usage_tracking.month, month)))
+      .where(and(eq(usage_tracking.site_id, siteId), eq(usage_tracking.month, month)))
       .limit(1);
     return result[0];
   }
 
-  async updateUsageTracking(clientId: number, month: string, incrementBy: number): Promise<UsageTracking> {
+  async updateUsageTracking(siteId: string, month: string, articlesIncrement: number = 0, imagesIncrement: number = 0): Promise<UsageTracking> {
     // Try to get existing record
-    const existing = await this.getUsageTracking(clientId, month);
-    
+    const existing = await this.getUsageTracking(siteId, month);
+
     if (existing) {
       // Update existing record
       const result = await db.update(usage_tracking)
         .set({
-          articles_generated: (existing.articles_generated || 0) + incrementBy,
+          articles_generated: (existing.articles_generated || 0) + articlesIncrement,
+          images_generated: (existing.images_generated || 0) + imagesIncrement,
           updated_at: new Date(),
         })
         .where(eq(usage_tracking.id, existing.id))
         .returning();
-      
+
       return result[0];
     } else {
       // Create new record
       const result = await db.insert(usage_tracking).values({
-        client_id: clientId,
+        site_id: siteId,
         month,
-        articles_generated: incrementBy,
-        limit: 10,
+        articles_generated: articlesIncrement,
+        images_generated: imagesIncrement,
       }).returning();
-      
+
       return result[0];
     }
   }
@@ -230,6 +231,48 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSite(id: string): Promise<void> {
     await db.delete(sites).where(eq(sites.id, id));
+  }
+
+  // Headless CMS - Site Member methods
+  async getSiteMember(id: string): Promise<SiteMember | undefined> {
+    const result = await db.select().from(site_members).where(eq(site_members.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getSiteMembersBySiteId(siteId: string): Promise<SiteMember[]> {
+    return await db.select().from(site_members).where(eq(site_members.site_id, siteId));
+  }
+
+  async getSiteMembersByUserId(userId: number): Promise<SiteMember[]> {
+    return await db.select().from(site_members).where(eq(site_members.user_id, userId));
+  }
+
+  async getSiteMemberBySiteAndUser(siteId: string, userId: number): Promise<SiteMember | undefined> {
+    const result = await db.select().from(site_members)
+      .where(and(eq(site_members.site_id, siteId), eq(site_members.user_id, userId)))
+      .limit(1);
+    return result[0];
+  }
+
+  async createSiteMember(siteMember: InsertSiteMember): Promise<SiteMember> {
+    const result = await db.insert(site_members).values([siteMember]).returning();
+    return result[0];
+  }
+
+  async updateSiteMember(id: string, updates: Partial<SiteMember>): Promise<SiteMember> {
+    const result = await db.update(site_members)
+      .set(updates)
+      .where(eq(site_members.id, id))
+      .returning();
+
+    if (!result[0]) {
+      throw new Error('Site member not found');
+    }
+    return result[0];
+  }
+
+  async deleteSiteMember(id: string): Promise<void> {
+    await db.delete(site_members).where(eq(site_members.id, id));
   }
 
   // Headless CMS - Post methods

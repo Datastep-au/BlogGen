@@ -41,19 +41,34 @@ export async function authenticateRequest(req: Request, res: Response, next: Nex
     let dbUser = await storage.getUserByEmail(supabaseUser.email || '');
 
     if (!dbUser) {
-      // Create user if they don't exist (first time login)
-      dbUser = await storage.createUser({
-        email: supabaseUser.email || '',
-        full_name: supabaseUser.user_metadata?.full_name || null,
-        avatar_url: supabaseUser.user_metadata?.avatar_url || null,
-        role: 'client_editor', // Default role for new users
+      // SECURITY: Do NOT auto-create users!
+      // Users must be invited by an admin first
+      console.warn(`Unauthorized login attempt by ${supabaseUser.email}`);
+      return res.status(403).json({
+        error: 'Account not found. You must be invited by an administrator to access this application.'
       });
     }
 
-    // Attach user to request
+    // Sync supabase_user_id if not already set (for existing users)
+    if (!dbUser.supabase_user_id) {
+      dbUser = await storage.updateUser(dbUser.id, {
+        supabase_user_id: supabaseUser.id,
+      });
+    }
+
+    // Get user's site memberships for authorization context
+    const siteMemberships = await storage.getSiteMembersByUserId(dbUser.id);
+
+    // Attach user to request with site access info
     req.user = {
       id: dbUser.id,
       email: dbUser.email,
+      role: dbUser.role,
+      supabase_user_id: supabaseUser.id,
+      site_memberships: siteMemberships.map(sm => ({
+        site_id: sm.site_id,
+        role: sm.role,
+      })),
     };
 
     next();
