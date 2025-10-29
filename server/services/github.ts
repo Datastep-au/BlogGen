@@ -149,8 +149,8 @@ Happy blogging!
    */
   async commitPost(
     client: Client,
-    article: Article,
-    imageData?: { url: string; data: Buffer }
+    article: Article & { publish_at?: Date | null },
+    imageData?: { fileName: string; data: Buffer; frontMatterPath?: string }
   ): Promise<{
     success: boolean;
     commit_url?: string;
@@ -167,21 +167,25 @@ Happy blogging!
       // Extract repo name from URL
       const repoName = this.extractRepoName(client.repo_url);
       
+      const slug = article.slug || this.slugify(article.title);
+
       // Generate MDX content with front-matter
       const frontMatter = {
         title: article.title,
-        slug: this.slugify(article.title),
+        slug,
         publish_at: article.publish_at?.toISOString() || new Date().toISOString(),
         description: article.meta_description || "",
         tags: article.keywords || [],
-        hero: article.hero_image_url || null,
+        hero: imageData
+          ? imageData.frontMatterPath || `/images/${imageData.fileName}`
+          : article.hero_image_url || null,
         hero_alt: article.hero_image_description || "",
         status: article.status,
         word_count: article.word_count,
       };
 
       const mdxContent = this.generateMDXContent(frontMatter, article.content);
-      const fileName = `${this.slugify(article.title)}.mdx`;
+      const fileName = `${slug}.mdx`;
       const filePath = article.status === "published" ? `posts/${fileName}` : `drafts/${fileName}`;
 
       // Commit the post
@@ -195,7 +199,7 @@ Happy blogging!
 
       // Commit image if provided
       if (imageData && imageData.data) {
-        const imageName = `${this.slugify(article.title)}-hero.jpg`;
+        const imageName = imageData.fileName || `${slug}-hero.jpg`;
         await this.octokit.repos.createOrUpdateFileContents({
           owner: GITHUB_OWNER,
           repo: repoName,
@@ -224,7 +228,10 @@ Happy blogging!
   /**
    * Update the blog.json index file
    */
-  private async updateBlogIndex(repoName: string, article: Article): Promise<void> {
+  private async updateBlogIndex(
+    repoName: string,
+    article: Article & { publish_at?: Date | null }
+  ): Promise<void> {
     try {
       // Get current blog.json
       const { data: currentFile } = await this.octokit.repos.getContent({
