@@ -54,25 +54,45 @@ The BlogGen application has successfully completed Phase 2 migration with all cr
 ## Known Issues (Non-Critical)
 
 ### 1. Supabase Storage Bucket - Signature Verification Failed
-**Status**: ⚠️ Warning (Non-blocking)
+**Status**: ⚠️ **CRITICAL** (Blocks Image Uploads)
 **Error**: `StorageApiError: signature verification failed (status: 400)`
 
+**Root Cause Identified**:
+The `SUPABASE_SERVICE_ROLE_KEY` in your `.env` file is **not the actual service role key** from your Supabase project. While the JWT structure is valid, it was not signed with the correct JWT secret that your Supabase project is using.
+
+**Diagnostic Evidence**:
+- ✅ JWT decodes correctly (role: service_role, project: ajpkqayllmdzytrcgiwg, not expired)
+- ❌ Storage API returns 403 Unauthorized
+- ❌ Auth API returns 401 Unauthorized
+- ❌ All Supabase API calls fail with signature verification
+
 **Impact**:
-- Storage bucket initialization failed during server startup
-- Image uploads to Supabase Storage may not work
-- Does NOT prevent application from starting
-- Does NOT affect database operations or API functionality
+- ❌ Storage bucket initialization fails during server startup
+- ❌ Image uploads to Supabase Storage **WILL NOT WORK**
+- ❌ Article generation with images will fail to store images
+- ❌ Site-specific storage buckets cannot be created
+- ✅ Does NOT prevent application from starting
+- ✅ Does NOT affect database operations or API functionality
+- ✅ Text-only articles work normally
 
-**Possible Causes**:
-- `SUPABASE_SERVICE_ROLE_KEY` may be incorrect or expired
-- Supabase project settings may have changed
-- Service role key may not have storage permissions
+**Fix Required**:
+1. **Get the correct service role key** from Supabase Dashboard:
+   - Visit: https://supabase.com/dashboard/project/ajpkqayllmdzytrcgiwg/settings/api
+   - Copy the **"service_role secret"** key (NOT the anon key)
+   - This is the key with **full admin access** to your project
 
-**Recommendation**:
-- Verify `SUPABASE_SERVICE_ROLE_KEY` in Supabase dashboard
-- Check Supabase Storage is enabled for the project
-- Regenerate service role key if necessary
-- Test image upload functionality manually
+2. **Update your `.env` file**:
+   ```bash
+   SUPABASE_SERVICE_ROLE_KEY=<paste_actual_key_from_dashboard>
+   ```
+
+3. **Verify the fix**:
+   ```bash
+   node test-storage-auth.js  # All tests should pass
+   npm run dev                 # Should show: ✅ Storage bucket already exists
+   ```
+
+**Detailed Instructions**: See [SUPABASE_STORAGE_FIX.md](SUPABASE_STORAGE_FIX.md)
 
 ---
 

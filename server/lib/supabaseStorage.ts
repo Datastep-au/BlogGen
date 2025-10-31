@@ -16,7 +16,17 @@ const BUCKET_NAME = 'bloggen-assets';
 
 export async function initializeStorageBucket() {
   try {
-    const { data: buckets } = await supabaseStorage.storage.listBuckets();
+    const { data: buckets, error: listError } = await supabaseStorage.storage.listBuckets();
+
+    if (listError) {
+      console.error('❌ Failed to initialize storage bucket:', listError.message);
+      if (listError.message.includes('signature verification')) {
+        console.error('⚠️  SUPABASE_SERVICE_ROLE_KEY is invalid or expired.');
+        console.error('📖 See SUPABASE_STORAGE_FIX.md for instructions on how to fix this.');
+      }
+      return;
+    }
+
     const bucketExists = buckets?.some(bucket => bucket.name === BUCKET_NAME);
 
     if (!bucketExists) {
@@ -26,7 +36,7 @@ export async function initializeStorageBucket() {
       });
 
       if (error) {
-        console.error('Failed to create storage bucket:', error);
+        console.error('❌ Failed to create storage bucket:', error.message);
       } else {
         console.log('✅ Storage bucket created:', BUCKET_NAME);
       }
@@ -34,7 +44,7 @@ export async function initializeStorageBucket() {
       console.log('✅ Storage bucket already exists:', BUCKET_NAME);
     }
   } catch (error) {
-    console.error('Error initializing storage bucket:', error);
+    console.error('❌ Error initializing storage bucket:', error instanceof Error ? error.message : error);
   }
 }
 
