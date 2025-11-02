@@ -1183,7 +1183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/usage", requireClientAccess, async (req, res) => {
     try {
       const userId = req.user?.id;
-      
+
       if (!userId) {
         return res.status(401).json({ error: "Authentication required" });
       }
@@ -1192,17 +1192,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !user.client_id) {
         return res.json({
           count: 0,
-          limit: 10,
+          limit: 50,
           month: new Date().toISOString().substring(0, 7)
         });
       }
 
+      // Get the user's primary site
+      const { getUserSites } = await import('./lib/authorization');
+      const userSites = await getUserSites(userId);
+
+      if (userSites.length === 0) {
+        return res.json({
+          count: 0,
+          limit: 50,
+          month: new Date().toISOString().substring(0, 7)
+        });
+      }
+
+      // Use the first site (primary site)
+      const site = userSites[0];
       const currentMonth = new Date().toISOString().substring(0, 7);
-      const usage = await storage.getUsageTracking(user.client_id, currentMonth);
-      
+      const usage = await storage.getUsageTracking(site.id, currentMonth);
+
       res.json({
         count: usage?.articles_generated || 0,
-        limit: usage?.limit || 10,
+        limit: site.monthly_article_limit || 50,
         month: currentMonth
       });
     } catch (error) {

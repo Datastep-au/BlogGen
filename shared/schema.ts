@@ -76,10 +76,6 @@ export const usage_tracking = pgTable("usage_tracking", {
   month: text("month").notNull(), // YYYY-MM format
   articles_generated: integer("articles_generated").default(0),
   images_generated: integer("images_generated").default(0),
-  // Deprecated fields (kept for rollback)
-  old_client_id: integer("old_client_id"),
-  old_user_id: integer("old_user_id"),
-  // Removed: limit (now stored in sites table)
   created_at: timestamp("created_at").defaultNow().notNull(),
   updated_at: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
