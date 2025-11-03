@@ -123,7 +123,7 @@ export const site_members = pgTable("site_members", {
 - [migrations/0001_security_and_schema_fixes.sql](migrations/0001_security_and_schema_fixes.sql) - Lines 21-23
 
 **New Columns**:
-- `monthly_article_limit` (default: 50)
+- `monthly_article_limit` (default: 10)
 - `monthly_image_limit` (default: 100)
 
 ---

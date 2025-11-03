@@ -108,7 +108,7 @@ export const sites = pgTable("sites", {
   storage_bucket_name: text("storage_bucket_name").notNull(), // Dedicated Supabase storage bucket
   api_key_hash: text("api_key_hash").notNull(), // bcrypt hash of API key
   is_active: boolean("is_active").default(true).notNull(),
-  monthly_article_limit: integer("monthly_article_limit").default(50).notNull(),
+  monthly_article_limit: integer("monthly_article_limit").default(10).notNull(),
   monthly_image_limit: integer("monthly_image_limit").default(100).notNull(),
   created_at: timestamp("created_at").defaultNow().notNull(),
   updated_at: timestamp("updated_at").defaultNow().notNull(),
