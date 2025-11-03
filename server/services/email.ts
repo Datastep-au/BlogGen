@@ -71,7 +71,7 @@ export class EmailService {
             <ol>
               <li>Click the button below to access BlogGen</li>
               <li>Sign in using this email address: <strong>${recipientEmail}</strong></li>
-              <li>If you don't have an account, sign up with the same email address</li>
+              <li>Use the credentials provided by your administrator to complete sign in</li>
               <li>You'll automatically be assigned to the ${clientName} workspace</li>
             </ol>
             
@@ -114,7 +114,7 @@ export class EmailService {
         Getting Started:
         1. Visit: ${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'https://your-app-domain.com'}/auth
         2. Sign in using this email address: ${recipientEmail}
-        3. If you don't have an account, sign up with the same email address
+        3. Use the credentials provided by your administrator to complete sign in
         4. You'll automatically be assigned to the ${clientName} workspace
         
         Need Help?
