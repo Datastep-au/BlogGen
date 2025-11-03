@@ -857,7 +857,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Log featured images for debugging
       articles.forEach(article => {
         if (article.id === 11) {
-          console.log(`Article ${article.id} featured_image:`, article.featured_image);
+          console.log(`Article ${article.id} hero_image_url:`, article.hero_image_url);
         }
       });
 
@@ -873,7 +873,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('=== UPDATE ARTICLE REQUEST ===');
     console.log('Article ID:', req.params.id);
     console.log('Update data:', JSON.stringify(req.body, null, 2));
-    console.log('Featured image in request:', req.body.featured_image);
+    console.log('Hero image URL in request:', req.body.hero_image_url);
 
     try {
       const userId = req.user?.id;
@@ -1027,16 +1027,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Update article with new image
       const updatedArticle = await storage.updateArticle(articleId, {
-        featured_image: newImageUrl
+        hero_image_url: newImageUrl
       });
 
       console.log('Image regeneration complete:');
       console.log('  New image URL:', newImageUrl);
-      console.log('  Updated article featured_image:', updatedArticle.featured_image);
+      console.log('  Updated article hero_image_url:', updatedArticle.hero_image_url);
 
       res.json({
         success: true,
-        featured_image: newImageUrl,
+        hero_image_url: newImageUrl,
         article: updatedArticle
       });
     } catch (error) {

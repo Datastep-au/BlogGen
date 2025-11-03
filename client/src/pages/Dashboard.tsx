@@ -164,7 +164,7 @@ export default function Dashboard() {
           content: articleData.content,
           meta_description: articleData.meta_description,
           keywords: articleData.keywords,
-          featured_image: articleData.featured_image,
+          hero_image_url: articleData.hero_image_url,
         }),
       });
 

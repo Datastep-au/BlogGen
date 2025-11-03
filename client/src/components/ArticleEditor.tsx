@@ -24,7 +24,7 @@ export default function ArticleEditor({ article, onSave, onCancel, isLoading = f
   const [newKeyword, setNewKeyword] = useState('');
   const [imagePrompt, setImagePrompt] = useState('');
   const [isRegeneratingImage, setIsRegeneratingImage] = useState(false);
-  const [featuredImage, setFeaturedImage] = useState(article.featured_image || '');
+  const [heroImageUrl, setHeroImageUrl] = useState(article.hero_image_url || '');
   const { toast } = useToast();
 
   const handleSave = () => {
@@ -34,7 +34,7 @@ export default function ArticleEditor({ article, onSave, onCancel, isLoading = f
       content,
       meta_description: metaDescription,
       keywords,
-      featured_image: featuredImage,
+      hero_image_url: heroImageUrl,
     });
   };
 
@@ -75,7 +75,7 @@ export default function ArticleEditor({ article, onSave, onCancel, isLoading = f
       }
 
       const data = await response.json();
-      setFeaturedImage(data.featured_image);
+      setHeroImageUrl(data.hero_image_url);
       setImagePrompt('');
 
       toast({
@@ -164,10 +164,10 @@ export default function ArticleEditor({ article, onSave, onCancel, isLoading = f
             Featured Image
           </Label>
           <div className="border rounded-lg p-4 space-y-4">
-            {featuredImage && (
+            {heroImageUrl && (
               <div className="relative">
                 <img
-                  src={featuredImage}
+                  src={heroImageUrl}
                   alt={title}
                   className="w-full max-w-2xl rounded-lg"
                   onError={(e) => {
@@ -178,7 +178,7 @@ export default function ArticleEditor({ article, onSave, onCancel, isLoading = f
             )}
             <div className="space-y-3">
               <Label htmlFor="image-prompt" className="block text-sm font-medium text-gray-700">
-                {featuredImage ? 'Regenerate with custom prompt' : 'Generate hero image with custom prompt'}
+                {heroImageUrl ? 'Regenerate with custom prompt' : 'Generate hero image with custom prompt'}
               </Label>
               <div className="flex gap-2">
                 <Input
@@ -208,7 +208,7 @@ export default function ArticleEditor({ article, onSave, onCancel, isLoading = f
                   ) : (
                     <>
                       <ImageIcon className="w-4 h-4 mr-2" />
-                      {featuredImage ? 'Regenerate' : 'Generate'}
+                      {heroImageUrl ? 'Regenerate' : 'Generate'}
                     </>
                   )}
                 </Button>
