@@ -75,13 +75,26 @@ export default function ArticleEditor({ article, onSave, onCancel, isLoading = f
       }
 
       const data = await response.json();
-      setHeroImageUrl(data.hero_image_url);
-      setImagePrompt('');
+      const regeneratedUrl =
+        data.hero_image_url ??
+        data.featured_image ??
+        data.article?.hero_image_url ??
+        data.article?.featured_image ??
+        null;
 
-      toast({
-        title: 'Success',
-        description: 'Hero image regenerated successfully',
-      });
+      if (regeneratedUrl) {
+        setHeroImageUrl(regeneratedUrl);
+        toast({
+          title: 'Success',
+          description: 'Hero image regenerated successfully',
+        });
+      } else {
+        toast({
+          title: 'Warning',
+          description: 'Image was generated but the URL was missing from the response.',
+        });
+      }
+      setImagePrompt('');
     } catch (error) {
       console.error('Error regenerating image:', error);
       toast({
