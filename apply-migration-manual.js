@@ -18,10 +18,19 @@ async function applyMigration() {
     console.log('\n🚀 Step 2: Adding monthly limits to sites table...');
     await sql`
       ALTER TABLE sites
-      ADD COLUMN IF NOT EXISTS monthly_article_limit integer DEFAULT 50 NOT NULL,
+      ADD COLUMN IF NOT EXISTS monthly_article_limit integer DEFAULT 10 NOT NULL,
       ADD COLUMN IF NOT EXISTS monthly_image_limit integer DEFAULT 100 NOT NULL
     `;
-    console.log('✅ sites monthly limits added');
+    await sql`
+      ALTER TABLE sites
+      ALTER COLUMN monthly_article_limit SET DEFAULT 10
+    `;
+    await sql`
+      UPDATE sites
+      SET monthly_article_limit = 10
+      WHERE monthly_article_limit IS NULL OR monthly_article_limit > 10
+    `;
+    console.log('✅ sites monthly limits added and normalized');
 
     console.log('\n🚀 Step 3: Creating site_role enum...');
     await sql`

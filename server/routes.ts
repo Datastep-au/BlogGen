@@ -581,7 +581,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check article limit
       const articlesGenerated = usage?.articles_generated || 0;
-      const articleLimit = site.monthly_article_limit || 10;
+      const articleLimitRaw = site.monthly_article_limit ?? 10;
+      const articleLimit = Math.min(Math.max(1, articleLimitRaw), 10);
 
       if (articlesGenerated + topicsToGenerate > articleLimit) {
         return res.status(429).json({
@@ -1322,7 +1323,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         count: usage?.articles_generated || 0,
-        limit: site.monthly_article_limit || 10,
+        limit: Math.min(Math.max(1, site.monthly_article_limit ?? 10), 10),
         month: currentMonth
       });
     } catch (error) {
