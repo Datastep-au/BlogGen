@@ -4,7 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Save, X } from 'lucide-react';
+import { Save, X, RefreshCw, Image as ImageIcon } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import type { Article } from '@shared/schema';
 
 interface ArticleEditorProps {
@@ -20,6 +21,10 @@ export default function ArticleEditor({ article, onSave, onCancel, isLoading = f
   const [metaDescription, setMetaDescription] = useState(article.meta_description || '');
   const [keywords, setKeywords] = useState<string[]>(article.keywords || []);
   const [newKeyword, setNewKeyword] = useState('');
+  const [imagePrompt, setImagePrompt] = useState('');
+  const [isRegeneratingImage, setIsRegeneratingImage] = useState(false);
+  const [featuredImage, setFeaturedImage] = useState(article.featured_image || '');
+  const { toast } = useToast();
 
   const handleSave = () => {
     onSave({
@@ -28,7 +33,54 @@ export default function ArticleEditor({ article, onSave, onCancel, isLoading = f
       content,
       meta_description: metaDescription,
       keywords,
+      featured_image: featuredImage,
     });
+  };
+
+  const handleRegenerateImage = async () => {
+    if (!imagePrompt.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please enter an image prompt',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsRegeneratingImage(true);
+    try {
+      const response = await fetch(`/api/articles/${article.id}/regenerate-image`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ prompt: imagePrompt }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to regenerate image');
+      }
+
+      const data = await response.json();
+      setFeaturedImage(data.featured_image);
+      setImagePrompt('');
+
+      toast({
+        title: 'Success',
+        description: 'Hero image regenerated successfully',
+      });
+    } catch (error) {
+      console.error('Error regenerating image:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to regenerate image',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRegeneratingImage(false);
+    }
   };
 
   const addKeyword = () => {
@@ -95,6 +147,67 @@ export default function ArticleEditor({ article, onSave, onCancel, isLoading = f
             {metaDescription.length}/160 characters (recommended length for SEO)
           </p>
         </div>
+
+        {featuredImage && (
+          <div>
+            <Label className="block text-sm font-medium text-gray-700 mb-2">
+              Featured Image
+            </Label>
+            <div className="border rounded-lg p-4 space-y-4">
+              <div className="relative">
+                <img
+                  src={featuredImage}
+                  alt={title}
+                  className="w-full max-w-2xl rounded-lg"
+                  onError={(e) => {
+                    e.currentTarget.src = 'https://via.placeholder.com/800x400?text=Image+Not+Found';
+                  }}
+                />
+              </div>
+              <div className="space-y-3">
+                <Label htmlFor="image-prompt" className="block text-sm font-medium text-gray-700">
+                  Regenerate with custom prompt
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="image-prompt"
+                    value={imagePrompt}
+                    onChange={(e) => setImagePrompt(e.target.value)}
+                    placeholder="Describe the new image you want..."
+                    disabled={isRegeneratingImage || isLoading}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && imagePrompt.trim()) {
+                        e.preventDefault();
+                        handleRegenerateImage();
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleRegenerateImage}
+                    disabled={!imagePrompt.trim() || isRegeneratingImage || isLoading}
+                    variant="outline"
+                  >
+                    {isRegeneratingImage ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <ImageIcon className="w-4 h-4 mr-2" />
+                        Regenerate
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <p className="text-sm text-gray-500">
+                  Enter a custom prompt to generate a new hero image for this article
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div>
           <Label className="block text-sm font-medium text-gray-700 mb-2">

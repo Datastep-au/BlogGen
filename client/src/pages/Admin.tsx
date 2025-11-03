@@ -61,7 +61,7 @@ export default function Admin() {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [newClientName, setNewClientName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"client_editor" | "client_viewer" | "admin">("client_editor");
+  const [inviteRole, setInviteRole] = useState<"client_editor" | "client_viewer">("client_editor");
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [userToChangeRole, setUserToChangeRole] = useState<User | null>(null);
   const [newRole, setNewRole] = useState<string>("");
@@ -449,12 +449,6 @@ export default function Admin() {
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="admin">
-                                    <div className="flex items-center">
-                                      <Shield className="mr-2 h-4 w-4" />
-                                      Admin - Full access
-                                    </div>
-                                  </SelectItem>
                                   <SelectItem value="client_editor">
                                     <div className="flex items-center">
                                       <Edit className="mr-2 h-4 w-4" />
@@ -680,12 +674,6 @@ export default function Admin() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">
-                    <div className="flex items-center">
-                      <Shield className="mr-2 h-4 w-4" />
-                      Admin - Full access
-                    </div>
-                  </SelectItem>
                   <SelectItem value="client_editor">
                     <div className="flex items-center">
                       <Edit className="mr-2 h-4 w-4" />

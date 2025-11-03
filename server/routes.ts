@@ -941,6 +941,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Regenerate article hero image with custom prompt
+  app.post("/api/articles/:id/regenerate-image", requireClientAccess, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const articleId = parseInt(req.params.id);
+      const { prompt } = req.body;
+
+      if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+        return res.status(400).json({ error: "Image prompt is required" });
+      }
+
+      // Verify article exists
+      const article = await storage.getArticle(articleId);
+      if (!article) {
+        return res.status(404).json({ error: "Article not found" });
+      }
+
+      // Check edit permission
+      const { canEditArticle } = await import('./lib/authorization');
+      if (!(await canEditArticle(userId, articleId))) {
+        return res.status(403).json({ error: "You don't have permission to edit this article" });
+      }
+
+      // Get the site to access storage bucket
+      if (!article.site_id) {
+        return res.status(400).json({ error: "Article is not associated with a site" });
+      }
+
+      const site = await storage.getSite(article.site_id);
+      if (!site) {
+        return res.status(404).json({ error: "Site not found" });
+      }
+
+      // Generate new image with DALL-E
+      const { generateImage } = await import('./lib/openai');
+      const { downloadAndUploadImage } = await import('./lib/supabaseStorage');
+
+      const generatedImage = await generateImage(prompt.trim());
+
+      let newImageUrl = generatedImage.url;
+
+      // Upload to site's storage bucket
+      if (site.storage_bucket_name) {
+        const uploadResult = await downloadAndUploadImage(
+          generatedImage.url,
+          site.storage_bucket_name,
+          `hero-${Date.now()}.png`
+        );
+
+        if (uploadResult.success) {
+          newImageUrl = uploadResult.url!;
+        } else {
+          console.warn('Failed to upload regenerated image:', uploadResult.error);
+          // Fall back to temporary DALL-E URL
+        }
+      }
+
+      // Update article with new image
+      const updatedArticle = await storage.updateArticle(articleId, {
+        featured_image: newImageUrl
+      });
+
+      res.json({
+        success: true,
+        featured_image: newImageUrl,
+        article: updatedArticle
+      });
+    } catch (error) {
+      console.error("Error regenerating article image:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to regenerate image"
+      });
+    }
+  });
+
   // Export article as ZIP (markdown + images)
   app.get("/api/articles/:id/export", requireClientAccess, async (req, res) => {
     try {
