@@ -164,6 +164,7 @@ export default function Dashboard() {
           content: articleData.content,
           meta_description: articleData.meta_description,
           keywords: articleData.keywords,
+          featured_image: articleData.featured_image,
         }),
       });
 
@@ -640,6 +641,7 @@ ${article.content}`;
         article={editingArticle}
         onSave={handleSaveArticle}
         onCancel={() => setEditingArticle(null)}
+        accessToken={session?.access_token}
       />
     );
   }

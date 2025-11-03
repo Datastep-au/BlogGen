@@ -854,6 +854,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         articles = await storage.getArticlesBySiteIds(siteIds);
       }
 
+      // Log featured images for debugging
+      articles.forEach(article => {
+        if (article.id === 11) {
+          console.log(`Article ${article.id} featured_image:`, article.featured_image);
+        }
+      });
+
       res.json(articles);
     } catch (error) {
       console.error("Error fetching articles:", error);
@@ -863,6 +870,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Update article (with site-based access control)
   app.put("/api/articles/:id", requireClientAccess, async (req, res) => {
+    console.log('=== UPDATE ARTICLE REQUEST ===');
+    console.log('Article ID:', req.params.id);
+    console.log('Update data:', JSON.stringify(req.body, null, 2));
+    console.log('Featured image in request:', req.body.featured_image);
+
     try {
       const userId = req.user?.id;
 
@@ -943,17 +955,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Regenerate article hero image with custom prompt
   app.post("/api/articles/:id/regenerate-image", requireClientAccess, async (req, res) => {
+    console.log('=== REGENERATE IMAGE REQUEST ===');
+    console.log('Article ID:', req.params.id);
+    console.log('User ID:', req.user?.id);
+    console.log('Request body:', req.body);
+
     try {
       const userId = req.user?.id;
 
       if (!userId) {
+        console.log('ERROR: No userId found');
         return res.status(401).json({ error: "Authentication required" });
       }
 
       const articleId = parseInt(req.params.id);
       const { prompt } = req.body;
 
+      console.log('Parsed article ID:', articleId);
+      console.log('Prompt:', prompt);
+
       if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+        console.log('ERROR: Invalid prompt');
         return res.status(400).json({ error: "Image prompt is required" });
       }
 
@@ -1007,6 +1029,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedArticle = await storage.updateArticle(articleId, {
         featured_image: newImageUrl
       });
+
+      console.log('Image regeneration complete:');
+      console.log('  New image URL:', newImageUrl);
+      console.log('  Updated article featured_image:', updatedArticle.featured_image);
 
       res.json({
         success: true,

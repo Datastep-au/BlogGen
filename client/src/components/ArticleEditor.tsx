@@ -13,9 +13,10 @@ interface ArticleEditorProps {
   onSave: (article: Partial<Article>) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  accessToken?: string;
 }
 
-export default function ArticleEditor({ article, onSave, onCancel, isLoading = false }: ArticleEditorProps) {
+export default function ArticleEditor({ article, onSave, onCancel, isLoading = false, accessToken }: ArticleEditorProps) {
   const [title, setTitle] = useState(article.title);
   const [content, setContent] = useState(article.content);
   const [metaDescription, setMetaDescription] = useState(article.meta_description || '');
@@ -47,12 +48,22 @@ export default function ArticleEditor({ article, onSave, onCancel, isLoading = f
       return;
     }
 
+    if (!accessToken) {
+      toast({
+        title: 'Error',
+        description: 'Authentication required',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsRegeneratingImage(true);
     try {
       const response = await fetch(`/api/articles/${article.id}/regenerate-image`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
         },
         credentials: 'include',
         body: JSON.stringify({ prompt: imagePrompt }),
@@ -148,12 +159,12 @@ export default function ArticleEditor({ article, onSave, onCancel, isLoading = f
           </p>
         </div>
 
-        {featuredImage && (
-          <div>
-            <Label className="block text-sm font-medium text-gray-700 mb-2">
-              Featured Image
-            </Label>
-            <div className="border rounded-lg p-4 space-y-4">
+        <div>
+          <Label className="block text-sm font-medium text-gray-700 mb-2">
+            Featured Image
+          </Label>
+          <div className="border rounded-lg p-4 space-y-4">
+            {featuredImage && (
               <div className="relative">
                 <img
                   src={featuredImage}
@@ -164,50 +175,50 @@ export default function ArticleEditor({ article, onSave, onCancel, isLoading = f
                   }}
                 />
               </div>
-              <div className="space-y-3">
-                <Label htmlFor="image-prompt" className="block text-sm font-medium text-gray-700">
-                  Regenerate with custom prompt
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="image-prompt"
-                    value={imagePrompt}
-                    onChange={(e) => setImagePrompt(e.target.value)}
-                    placeholder="Describe the new image you want..."
-                    disabled={isRegeneratingImage || isLoading}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && imagePrompt.trim()) {
-                        e.preventDefault();
-                        handleRegenerateImage();
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    onClick={handleRegenerateImage}
-                    disabled={!imagePrompt.trim() || isRegeneratingImage || isLoading}
-                    variant="outline"
-                  >
-                    {isRegeneratingImage ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <ImageIcon className="w-4 h-4 mr-2" />
-                        Regenerate
-                      </>
-                    )}
-                  </Button>
-                </div>
-                <p className="text-sm text-gray-500">
-                  Enter a custom prompt to generate a new hero image for this article
-                </p>
+            )}
+            <div className="space-y-3">
+              <Label htmlFor="image-prompt" className="block text-sm font-medium text-gray-700">
+                {featuredImage ? 'Regenerate with custom prompt' : 'Generate hero image with custom prompt'}
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="image-prompt"
+                  value={imagePrompt}
+                  onChange={(e) => setImagePrompt(e.target.value)}
+                  placeholder="Describe the new image you want..."
+                  disabled={isRegeneratingImage || isLoading}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && imagePrompt.trim()) {
+                      e.preventDefault();
+                      handleRegenerateImage();
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  onClick={handleRegenerateImage}
+                  disabled={!imagePrompt.trim() || isRegeneratingImage || isLoading}
+                  variant="outline"
+                >
+                  {isRegeneratingImage ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <ImageIcon className="w-4 h-4 mr-2" />
+                      {featuredImage ? 'Regenerate' : 'Generate'}
+                    </>
+                  )}
+                </Button>
               </div>
+              <p className="text-sm text-gray-500">
+                Enter a custom prompt to generate a new hero image for this article
+              </p>
             </div>
           </div>
-        )}
+        </div>
 
         <div>
           <Label className="block text-sm font-medium text-gray-700 mb-2">
