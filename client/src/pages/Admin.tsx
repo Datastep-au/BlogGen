@@ -52,6 +52,7 @@ type Site = {
 
 type SiteWithKey = Site & {
   api_key: string;
+  token: string;
 };
 
 export default function Admin() {
@@ -66,6 +67,7 @@ export default function Admin() {
   const [userToChangeRole, setUserToChangeRole] = useState<User | null>(null);
   const [newRole, setNewRole] = useState<string>("");
   const [rotatedApiKey, setRotatedApiKey] = useState<SiteWithKey | null>(null);
+  const [newClientCredentials, setNewClientCredentials] = useState<SiteWithKey | null>(null);
   const [expandedClient, setExpandedClient] = useState<number | null>(null);
 
   // Fetch all clients
@@ -93,9 +95,18 @@ export default function Admin() {
       return await response.json();
     },
     onSuccess: (data) => {
+      // Store the credentials for display
+      if (data.site) {
+        setNewClientCredentials({
+          ...data.site,
+          api_key: data.api_key,
+          token: data.token
+        });
+      }
+
       toast({
         title: "Client Created",
-        description: `${data.client.name} workspace created with dedicated site, GitHub repository, and storage bucket`,
+        description: `${data.client.name} workspace created! Save your credentials below.`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/clients"] });
       setIsCreateDialogOpen(false);
@@ -346,28 +357,132 @@ export default function Admin() {
         </Dialog>
       </div>
 
+      {/* New Client Credentials Alert */}
+      {newClientCredentials && (
+        <Alert className="mb-6 border-blue-500 bg-blue-50" data-testid="alert-new-client-credentials">
+          <Key className="h-4 w-4" />
+          <AlertDescription>
+            <div className="space-y-3">
+              <p className="font-semibold">🎉 Client Created! Save these credentials now:</p>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Site ID:</label>
+                <div className="flex items-center gap-2 bg-white p-3 rounded border">
+                  <code className="flex-1 text-sm font-mono break-all" data-testid="text-new-site-id">
+                    {newClientCredentials.id}
+                  </code>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => copyToClipboard(newClientCredentials.id, "Site ID")}
+                    data-testid="button-copy-new-site-id"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">API Key (for reference):</label>
+                <div className="flex items-center gap-2 bg-white p-3 rounded border">
+                  <code className="flex-1 text-sm font-mono break-all" data-testid="text-new-api-key">
+                    {newClientCredentials.api_key}
+                  </code>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => copyToClipboard(newClientCredentials.api_key, "API key")}
+                    data-testid="button-copy-new-api-key"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">JWT Token (use this for API requests):</label>
+                <div className="flex items-center gap-2 bg-white p-3 rounded border">
+                  <code className="flex-1 text-sm font-mono break-all" data-testid="text-new-token">
+                    {newClientCredentials.token}
+                  </code>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => copyToClipboard(newClientCredentials.token, "JWT token")}
+                    data-testid="button-copy-new-token"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-1 bg-blue-100 p-3 rounded">
+                <p className="text-sm font-medium">Quick test:</p>
+                <code className="text-xs block">
+                  curl -H "Authorization: Bearer {newClientCredentials.token}" http://localhost:3005/v1/sites/{newClientCredentials.id}/health
+                </code>
+              </div>
+
+              <p className="text-sm text-muted-foreground">
+                ⚠️ These credentials won't be shown again. Store them securely!
+              </p>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setNewClientCredentials(null)}
+                data-testid="button-dismiss-new-credentials"
+              >
+                Dismiss
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Rotated API Key Alert */}
       {rotatedApiKey && (
         <Alert className="mb-6 border-green-500 bg-green-50" data-testid="alert-rotated-api-key">
           <Key className="h-4 w-4" />
           <AlertDescription>
-            <div className="space-y-2">
-              <p className="font-semibold">🎉 API Key Rotated! Save it now:</p>
-              <div className="flex items-center gap-2 bg-white p-3 rounded border">
-                <code className="flex-1 text-sm font-mono break-all" data-testid="text-rotated-api-key">
-                  {rotatedApiKey.api_key}
-                </code>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => copyToClipboard(rotatedApiKey.api_key, "API key")}
-                  data-testid="button-copy-rotated-key"
-                >
-                  <Copy className="w-4 h-4" />
-                </Button>
+            <div className="space-y-3">
+              <p className="font-semibold">🎉 API Key Rotated! Save these now:</p>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">API Key (for reference):</label>
+                <div className="flex items-center gap-2 bg-white p-3 rounded border">
+                  <code className="flex-1 text-sm font-mono break-all" data-testid="text-rotated-api-key">
+                    {rotatedApiKey.api_key}
+                  </code>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => copyToClipboard(rotatedApiKey.api_key, "API key")}
+                    data-testid="button-copy-rotated-key"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">JWT Token (use this for API requests):</label>
+                <div className="flex items-center gap-2 bg-white p-3 rounded border">
+                  <code className="flex-1 text-sm font-mono break-all" data-testid="text-rotated-token">
+                    {rotatedApiKey.token}
+                  </code>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => copyToClipboard(rotatedApiKey.token, "JWT token")}
+                    data-testid="button-copy-rotated-token"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
               <p className="text-sm text-muted-foreground">
-                ⚠️ This key won't be shown again. Store it securely!
+                ⚠️ These credentials won't be shown again. Store them securely!
               </p>
               <Button
                 size="sm"

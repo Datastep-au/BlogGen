@@ -68,9 +68,9 @@ export async function authenticateApiRequest(
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ 
+    return res.status(401).json({
       error: 'Unauthorized',
-      message: 'Missing or invalid authorization header' 
+      message: 'Missing or invalid authorization header'
     });
   }
 
