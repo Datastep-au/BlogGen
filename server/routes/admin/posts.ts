@@ -67,10 +67,11 @@ router.post('/publish', async (req, res) => {
       title: article.title,
       slug: uniqueSlug,
       excerpt: article.excerpt || article.meta_description?.substring(0, 200) || null,
+      content: article.content, // Legacy column
       body_md: article.content,
       body_html: bodyHtml,
       tags: article.keywords || [],
-      cover_image_url: article.cover_image_url,
+      cover_image_url: article.hero_image_url || article.cover_image_url,
       meta_title: article.title,
       meta_description: article.meta_description,
       og_image_url: article.hero_image_url || article.cover_image_url,
@@ -81,26 +82,8 @@ router.post('/publish', async (req, res) => {
       content_hash: contentHash
     });
 
-    // If post has images, create asset records
-    if (article.hero_image_url) {
-      await storage.createAsset({
-        site_id,
-        post_id: post.id,
-        url: article.hero_image_url,
-        alt: article.hero_image_description || article.title,
-        role: 'hero'
-      });
-    }
-
-    if (article.cover_image_url && article.cover_image_url !== article.hero_image_url) {
-      await storage.createAsset({
-        site_id,
-        post_id: post.id,
-        url: article.cover_image_url,
-        alt: article.title,
-        role: 'cover'
-      });
-    }
+    // Note: Asset records creation skipped due to schema mismatch
+    // Images are already referenced in post.cover_image_url and post.og_image_url
 
     // If publishing immediately, emit webhook
     if (status === 'published') {
@@ -177,8 +160,10 @@ router.put('/:postId', async (req, res) => {
 
       // Add old slug to history
       await storage.createPostSlug({
+        site_id: post.site_id,
         post_id: post.id,
-        slug: post.slug
+        old_slug: post.slug,
+        new_slug: newSlug
       });
     }
 

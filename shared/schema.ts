@@ -135,6 +135,7 @@ export const posts = pgTable("posts", {
   title: text("title").notNull(),
   slug: text("slug").notNull(),
   excerpt: text("excerpt"),
+  content: text("content").notNull(), // Legacy column - same as body_md
   body_md: text("body_md").notNull(), // Markdown content
   body_html: text("body_html"), // Cached HTML render
   tags: text("tags").array().default([]),
@@ -149,7 +150,7 @@ export const posts = pgTable("posts", {
   updated_at: timestamp("updated_at").defaultNow().notNull(),
   content_hash: uuid("content_hash").notNull(), // Deterministic hash of content
 }, (table) => ({
-  siteSlugUnique: { 
+  siteSlugUnique: {
     name: "posts_site_id_slug_unique",
     columns: [table.site_id, table.slug]
   }
@@ -158,8 +159,10 @@ export const posts = pgTable("posts", {
 // Post slugs history for redirects
 export const post_slugs = pgTable("post_slugs", {
   id: serial("id").primaryKey(),
+  site_id: uuid("site_id").notNull(), // Added to match database
   post_id: uuid("post_id").notNull().references(() => posts.id, { onDelete: "cascade" }),
-  slug: text("slug").notNull(),
+  old_slug: text("old_slug").notNull(), // Changed from slug to old_slug
+  new_slug: text("new_slug").notNull(), // Added new_slug
   created_at: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -180,8 +183,9 @@ export const assets = pgTable("assets", {
 export const webhooks = pgTable("webhooks", {
   id: uuid("id").primaryKey().defaultRandom(),
   site_id: uuid("site_id").notNull().references(() => sites.id, { onDelete: "cascade" }),
-  target_url: text("target_url").notNull(),
-  secret: text("secret").notNull(),
+  url: text("url").notNull(), // Changed from target_url to match database
+  events: text("events").array(), // Added to match database
+  secret: text("secret"), // Made optional as it's not in database
   is_active: boolean("is_active").default(true).notNull(),
   created_at: timestamp("created_at").defaultNow().notNull(),
 });
@@ -202,9 +206,10 @@ export const webhook_delivery_logs = pgTable("webhook_delivery_logs", {
 // Scheduled jobs table (for webhook retries and scheduled posts)
 export const scheduled_jobs = pgTable("scheduled_jobs", {
   id: uuid("id").primaryKey().defaultRandom(),
-  job_type: text("job_type").notNull(), // 'webhook_delivery' | 'publish_scheduled_post'
+  job_type: text("job_type").notNull(), // 'webhook_delivery' | 'publish_scheduled_post' | 'publish_article_to_cms'
   payload: json("payload").notNull(), // JSON payload for the job
   scheduled_for: timestamp("scheduled_for").notNull(),
+  scheduled_date: timestamp("scheduled_date"), // Legacy column for backwards compatibility
   attempts: integer("attempts").default(0).notNull(),
   max_attempts: integer("max_attempts").default(5).notNull(),
   last_error: text("last_error"),

@@ -56,7 +56,6 @@ router.get('/sites/:siteId/posts', async (req: Request, res: Response) => {
     const postsWithMetadata = await Promise.all(
       posts.map(async (post) => {
         const previousSlugs = await storage.getPostSlugs(post.id);
-        const images = await storage.getAssetsByPostId(post.id);
 
         return {
           id: post.id,
@@ -75,14 +74,7 @@ router.get('/sites/:siteId/posts', async (req: Request, res: Response) => {
           status: post.status,
           published_at: post.published_at,
           updated_at: post.updated_at,
-          images: images.map(img => ({
-            url: img.url,
-            alt: img.alt,
-            w: img.width,
-            h: img.height,
-            role: img.role
-          })),
-          previous_slugs: previousSlugs.map(ps => ps.slug).filter(s => s !== post.slug),
+          previous_slugs: previousSlugs.map(ps => ps.old_slug).filter(s => s !== post.slug),
           content_hash: post.content_hash
         };
       })
@@ -126,7 +118,6 @@ router.get('/sites/:siteId/posts/:slug', async (req: Request, res: Response) => 
     }
 
     const previousSlugs = await storage.getPostSlugs(post.id);
-    const images = await storage.getAssetsByPostId(post.id);
 
     const responseBody = {
       id: post.id,
@@ -145,14 +136,7 @@ router.get('/sites/:siteId/posts/:slug', async (req: Request, res: Response) => 
       status: post.status,
       published_at: post.published_at,
       updated_at: post.updated_at,
-      images: images.map(img => ({
-        url: img.url,
-        alt: img.alt,
-        w: img.width,
-        h: img.height,
-        role: img.role
-      })),
-      previous_slugs: previousSlugs.map(ps => ps.slug).filter(s => s !== post.slug),
+      previous_slugs: previousSlugs.map(ps => ps.old_slug).filter(s => s !== post.slug),
       content_hash: post.content_hash
     };
 

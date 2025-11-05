@@ -29,8 +29,8 @@ export async function emitWebhookEvent(payload: WebhookPayload): Promise<void> {
       job_type: 'webhook_delivery',
       payload: {
         webhook_id: webhook.id,
-        webhook_url: webhook.target_url,
-        webhook_secret: webhook.secret,
+        webhook_url: webhook.url, // Changed from target_url to url
+        webhook_secret: webhook.secret || '',  // Handle optional secret
         event_payload: payload
       },
       scheduled_for: new Date(),

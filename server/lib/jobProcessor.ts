@@ -1,6 +1,7 @@
 import { getStorage } from '../storage';
 import { deliverWebhook, emitWebhookEvent } from './webhooks';
 import type { WebhookPayload } from './webhooks';
+import { publishArticleToCMS } from './articlePublisher';
 
 let processorInterval: NodeJS.Timeout | null = null;
 
@@ -38,10 +39,83 @@ export function stopJobProcessor() {
 
 async function processJobs() {
   try {
+    await processScheduledArticles();
     await processScheduledPosts();
     await processWebhookDeliveries();
   } catch (error) {
     console.error('Error processing jobs:', error);
+  }
+}
+
+async function processScheduledArticles() {
+  const storage = await getStorage();
+  const now = new Date();
+
+  // Get pending scheduled article jobs
+  const jobs = await storage.getPendingScheduledJobs(now);
+  const articleJobs = jobs.filter(job => job.job_type === 'publish_article_to_cms');
+
+  for (const job of articleJobs) {
+    try {
+      const { article_id, site_id } = job.payload as { article_id: number; site_id: string };
+      const article = await storage.getArticle(article_id);
+
+      if (!article) {
+        console.error(`Article ${article_id} not found, marking job as completed`);
+        await storage.updateScheduledJob(job.id, {
+          completed_at: new Date(),
+          last_error: 'Article not found'
+        });
+        continue;
+      }
+
+      // Check if article should be published (scheduled date has arrived)
+      if (article.status === 'scheduled' && article.scheduled_date && new Date(article.scheduled_date) <= now) {
+        // Publish article to CMS (create post)
+        const post = await publishArticleToCMS(article, site_id, {
+          status: 'published',
+          publishedAt: new Date()
+        });
+
+        // Update article status to published
+        await storage.updateArticle(article_id, {
+          status: 'published'
+        });
+
+        // Emit webhook for post_published event
+        await emitWebhookEvent({
+          event: 'post_published',
+          site_id: site_id,
+          post_id: post.id,
+          slug: post.slug,
+          updated_at: new Date().toISOString(),
+          content_hash: post.content_hash
+        });
+
+        // Mark job as completed
+        await storage.updateScheduledJob(job.id, {
+          completed_at: new Date()
+        });
+
+        console.log(`✅ Published scheduled article to CMS: ${article.title}`);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`Error processing scheduled article job ${job.id}:`, errorMessage);
+
+      await storage.updateScheduledJob(job.id, {
+        attempts: job.attempts + 1,
+        last_error: errorMessage
+      });
+
+      // If max attempts reached, mark as completed with error
+      if (job.attempts + 1 >= job.max_attempts) {
+        await storage.updateScheduledJob(job.id, {
+          completed_at: new Date()
+        });
+        console.error(`❌ Failed to publish article after ${job.attempts + 1} attempts`);
+      }
+    }
   }
 }
 
