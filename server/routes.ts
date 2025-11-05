@@ -1235,11 +1235,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Forbidden - access denied" });
       }
 
+      // Cancel any existing scheduled jobs for this article
+      await storage.cancelScheduledJobsForArticle(articleId);
+
       // Update the scheduled_date (null to clear, date to set)
       const updateData: any = {
         scheduled_date: scheduled_date ? new Date(scheduled_date) : null,
       };
-      
+
       // Update status based on scheduled_date
       if (scheduled_date) {
         updateData.status = 'scheduled' as const;
@@ -1249,6 +1252,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const updatedArticle = await storage.updateArticle(articleId, updateData);
+
+      // Create a new scheduled job to publish article to CMS
+      if (scheduled_date) {
+        await storage.createScheduledJob({
+          job_type: 'publish_article_to_cms',
+          payload: {
+            article_id: articleId,
+            site_id: article.site_id
+          },
+          scheduled_for: new Date(scheduled_date),
+          scheduled_date: new Date(scheduled_date), // Legacy column for backwards compatibility
+          max_attempts: 3
+        });
+        console.log(`✅ Created scheduled job for article ${articleId} to publish at ${scheduled_date}`);
+      }
 
       res.json(updatedArticle);
     } catch (error) {

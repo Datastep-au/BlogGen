@@ -498,4 +498,17 @@ export class DatabaseStorage implements IStorage {
   async deleteScheduledJob(id: string): Promise<void> {
     await db.delete(scheduled_jobs).where(eq(scheduled_jobs.id, id));
   }
+
+  async cancelScheduledJobsForArticle(articleId: number): Promise<void> {
+    await db.update(scheduled_jobs)
+      .set({
+        completed_at: new Date(),
+        last_error: 'Cancelled by user'
+      })
+      .where(and(
+        eq(scheduled_jobs.job_type, 'publish_article_to_cms'),
+        sql`${scheduled_jobs.payload}->>'article_id' = ${articleId.toString()}`,
+        isNull(scheduled_jobs.completed_at)
+      ));
+  }
 }
