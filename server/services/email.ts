@@ -3,6 +3,7 @@ import fetch from 'node-fetch';
 const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY || '';
 const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN || 'bloggen.pro';
 const FROM_EMAIL = process.env.MAILGUN_FROM_EMAIL || `BlogGen <noreply@${MAILGUN_DOMAIN}>`;
+const APP_URL = process.env.APP_URL || 'https://bloggen.pro';
 
 export class EmailService {
   private apiKey: string;
@@ -76,7 +77,7 @@ export class EmailService {
             </ol>
             
             <div style="text-align: center;">
-              <a href="${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'https://your-app-domain.com'}/auth" class="button">
+              <a href="${APP_URL}/auth" class="button">
                 Access BlogGen
               </a>
             </div>
@@ -112,7 +113,7 @@ export class EmailService {
         }
         
         Getting Started:
-        1. Visit: ${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'https://your-app-domain.com'}/auth
+        1. Visit: ${APP_URL}/auth
         2. Sign in using this email address: ${recipientEmail}
         3. Use the credentials provided by your administrator to complete sign in
         4. You'll automatically be assigned to the ${clientName} workspace

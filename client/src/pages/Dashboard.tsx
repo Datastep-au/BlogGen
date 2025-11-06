@@ -21,6 +21,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [viewingArticle, setViewingArticle] = useState<Article | null>(null);
   const [copyingArticle, setCopyingArticle] = useState<Article | null>(null);
@@ -390,14 +391,20 @@ ${article.content}`;
     }
   };
 
-  const filteredArticles = articles.filter(article => {
-    const matchesSearch = article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         article.topic.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesFilter = filterStatus === 'all' || article.status === filterStatus;
+  const filteredArticles = articles
+    .filter(article => {
+      const matchesSearch = article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           article.topic.toLowerCase().includes(searchTerm.toLowerCase());
 
-    return matchesSearch && matchesFilter;
-  });
+      const matchesFilter = filterStatus === 'all' || article.status === filterStatus;
+
+      return matchesSearch && matchesFilter;
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return sortBy === 'newest' ? dateB - dateA : dateA - dateB;
+    });
 
   if (copyingArticle) {
     return (
@@ -788,6 +795,15 @@ ${article.content}`;
               <SelectItem value="published">Published</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={sortBy} onValueChange={(value: 'newest' | 'oldest') => setSortBy(value)}>
+            <SelectTrigger className="sm:w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest First</SelectItem>
+              <SelectItem value="oldest">Oldest First</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -930,6 +946,13 @@ ${article.content}`;
                         className={article.status === 'published' ? 'bg-purple-50 text-purple-800' : ''}
                       >
                         Mark as Published
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleDeleteArticle(article.id)}
+                        className="text-red-600 hover:bg-red-50 focus:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete Article
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
