@@ -22,7 +22,8 @@ export class EmailService {
     recipientName: string,
     clientName: string,
     role: string,
-    inviterName: string = 'BlogGen Admin'
+    inviterName: string = 'BlogGen Admin',
+    inviteToken?: string
   ): Promise<{ success: boolean; error?: string }> {
     try {
       if (!this.apiKey) {
@@ -30,9 +31,10 @@ export class EmailService {
       }
 
       const roleDisplayName = role.replace('client_', '').replace('_', ' ');
-      
+      const inviteUrl = inviteToken ? `${APP_URL}/accept-invite?token=${inviteToken}` : `${APP_URL}/auth`;
+
       const subject = `Invitation to join ${clientName} on BlogGen`;
-      
+
       const htmlContent = `
         <!DOCTYPE html>
         <html>
@@ -70,17 +72,18 @@ export class EmailService {
             
             <p><strong>Getting Started:</strong></p>
             <ol>
-              <li>Click the button below to access BlogGen</li>
-              <li>Sign in using this email address: <strong>${recipientEmail}</strong></li>
-              <li>Use the credentials provided by your administrator to complete sign in</li>
-              <li>You'll automatically be assigned to the ${clientName} workspace</li>
+              <li>Click the button below to set up your account</li>
+              <li>Create a secure password for your account</li>
+              <li>You'll be automatically signed in and assigned to the ${clientName} workspace</li>
             </ol>
-            
+
             <div style="text-align: center;">
-              <a href="${APP_URL}/auth" class="button">
-                Access BlogGen
+              <a href="${inviteUrl}" class="button">
+                Set Up Your Account
               </a>
             </div>
+
+            <p style="font-size: 14px; color: #64748b;">This invitation link will expire in 48 hours. If you need a new invitation, please contact your team administrator.</p>
             
             <p><strong>Need Help?</strong><br>
             If you have any questions or need assistance getting started, please don't hesitate to reach out to your team administrator.</p>
@@ -113,10 +116,11 @@ export class EmailService {
         }
         
         Getting Started:
-        1. Visit: ${APP_URL}/auth
-        2. Sign in using this email address: ${recipientEmail}
-        3. Use the credentials provided by your administrator to complete sign in
-        4. You'll automatically be assigned to the ${clientName} workspace
+        1. Visit: ${inviteUrl}
+        2. Create a secure password for your account
+        3. You'll be automatically signed in and assigned to the ${clientName} workspace
+
+        This invitation link will expire in 48 hours. If you need a new invitation, please contact your team administrator.
         
         Need Help?
         If you have any questions or need assistance getting started, please don't hesitate to reach out to your team administrator.

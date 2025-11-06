@@ -267,10 +267,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Invite user to client workspace (creates site_member record)
+  // Invite user to client workspace (creates invitation token for signup)
   app.post("/api/admin/clients/:clientId/invite", requireAdmin, async (req, res) => {
     try {
-      const { email, role = "client_editor", site_role = "editor" } = req.body;
+      const { email, full_name, role = "client_editor", site_role = "editor" } = req.body;
       const clientId = parseInt(req.params.clientId);
 
       if (!email) {
@@ -291,54 +291,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const site = sites[0];
 
       // Check if user already exists
-      let user = await storage.getUserByEmail(email);
-      let isNewUser = false;
-
-      if (user) {
-        // User exists - just add them to the site
-        // Keep their client_id for backwards compatibility (will be deprecated later)
-        if (!user.client_id) {
-          user = await storage.updateUser(user.id, {
-            client_id: clientId,
-            role: role as any,
-          });
-        }
-      } else {
-        // Create new user (will be able to log in after Supabase account is created)
-        user = await storage.createUser({
-          email,
-          client_id: clientId, // For backwards compatibility
-          role: role as any,
-        });
-        isNewUser = true;
-      }
-
-      // Check if user is already a member of this site
-      const existingMembership = await storage.getSiteMemberBySiteAndUser(site.id, user.id);
-      if (existingMembership) {
-        // Update existing membership
-        await storage.updateSiteMember(existingMembership.id, {
-          role: site_role as any,
-        });
-      } else {
-        // Create new site membership
-        await storage.createSiteMember({
-          site_id: site.id,
-          user_id: user.id,
-          role: site_role as any,
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({
+          error: "User with this email already exists. Please use a different email or manage the existing user."
         });
       }
 
-      // Send invitation email
+      // Generate invitation token
+      const { generateInviteToken, hashToken, getTokenExpiration } = await import('./lib/inviteToken.js');
+      const plainToken = generateInviteToken();
+      const tokenHash = hashToken(plainToken);
+      const expiresAt = getTokenExpiration(48); // 48 hours
+
+      // Create invitation token in database
+      const invitationToken = await storage.createInvitationToken({
+        email,
+        full_name,
+        token_hash: tokenHash,
+        role: role as any,
+        client_id: clientId,
+        site_id: site.id,
+        invited_by: req.user!.id,
+        expires_at: expiresAt,
+      });
+
+      // Send invitation email with token
       const currentUser = await storage.getUser(req.user!.id);
       const inviterName = currentUser?.full_name || currentUser?.email || 'BlogGen Admin';
 
       const emailResult = await emailService.sendInvitationEmail(
         email,
-        user.full_name || email.split('@')[0], // Use name or email prefix
+        full_name || email.split('@')[0], // Use name or email prefix
         client.name,
         role,
-        inviterName
+        inviterName,
+        plainToken // Pass the plain token for the email link
       );
 
       if (!emailResult.success) {
@@ -348,20 +336,190 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         success: true,
-        user,
+        invitation: {
+          id: invitationToken.id,
+          email: invitationToken.email,
+          expires_at: invitationToken.expires_at,
+        },
         site: {
           id: site.id,
           name: site.name,
         },
-        site_role,
         emailSent: emailResult.success,
         message: emailResult.success
-          ? `User ${email} has been invited to ${client.name} (${site.name}) and an invitation email has been sent`
-          : `User ${email} has been added to ${client.name} (${site.name}), but email delivery failed`
+          ? `Invitation sent to ${email} for ${client.name} (${site.name}). The link will expire in 48 hours.`
+          : `Invitation created for ${email}, but email delivery failed. Please share the invitation link manually.`
       });
     } catch (error) {
       console.error("Error inviting user:", error);
       res.status(500).json({ error: "Failed to invite user" });
+    }
+  });
+
+  // Validate invitation token (check if it's valid and not expired)
+  app.get("/api/invitations/validate/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+
+      if (!token) {
+        return res.status(400).json({ error: "Token is required" });
+      }
+
+      // Hash the token to look it up
+      const { hashToken, isTokenExpired } = await import('./lib/inviteToken.js');
+      const tokenHash = hashToken(token);
+
+      // Find the invitation token
+      const invitation = await storage.getInvitationTokenByHash(tokenHash);
+
+      if (!invitation) {
+        return res.status(404).json({ error: "Invalid invitation token" });
+      }
+
+      // Check if already used
+      if (invitation.used_at) {
+        return res.status(400).json({ error: "This invitation has already been used" });
+      }
+
+      // Check if expired
+      if (isTokenExpired(invitation.expires_at)) {
+        return res.status(400).json({ error: "This invitation has expired" });
+      }
+
+      // Get client and site info
+      const client = invitation.client_id ? await storage.getClient(invitation.client_id) : null;
+      const site = invitation.site_id ? await storage.getSite(invitation.site_id) : null;
+
+      res.json({
+        valid: true,
+        email: invitation.email,
+        full_name: invitation.full_name,
+        role: invitation.role,
+        client_name: client?.name,
+        site_name: site?.name,
+        expires_at: invitation.expires_at,
+      });
+    } catch (error) {
+      console.error("Error validating invitation:", error);
+      res.status(500).json({ error: "Failed to validate invitation" });
+    }
+  });
+
+  // Accept invitation and create Supabase user account
+  app.post("/api/invitations/accept", async (req, res) => {
+    try {
+      const { token, password } = req.body;
+
+      if (!token || !password) {
+        return res.status(400).json({ error: "Token and password are required" });
+      }
+
+      // Validate password strength
+      if (password.length < 8) {
+        return res.status(400).json({ error: "Password must be at least 8 characters long" });
+      }
+
+      // Hash the token to look it up
+      const { hashToken, isTokenExpired } = await import('./lib/inviteToken.js');
+      const tokenHash = hashToken(token);
+
+      // Find the invitation token
+      const invitation = await storage.getInvitationTokenByHash(tokenHash);
+
+      if (!invitation) {
+        return res.status(404).json({ error: "Invalid invitation token" });
+      }
+
+      // Check if already used
+      if (invitation.used_at) {
+        return res.status(400).json({ error: "This invitation has already been used" });
+      }
+
+      // Check if expired
+      if (isTokenExpired(invitation.expires_at)) {
+        return res.status(400).json({ error: "This invitation has expired" });
+      }
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(invitation.email);
+      if (existingUser) {
+        return res.status(400).json({ error: "User already exists" });
+      }
+
+      // Create Supabase auth user
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: invitation.email,
+        password: password,
+        email_confirm: true, // Auto-confirm email
+        user_metadata: {
+          full_name: invitation.full_name || '',
+        },
+      });
+
+      if (authError || !authData.user) {
+        console.error('Failed to create Supabase user:', authError);
+        return res.status(500).json({ error: "Failed to create user account" });
+      }
+
+      // Create user in our database
+      const user = await storage.createUser({
+        email: invitation.email,
+        supabase_user_id: authData.user.id,
+        full_name: invitation.full_name,
+        role: invitation.role,
+        client_id: invitation.client_id || undefined,
+      });
+
+      // Create site membership if site_id exists
+      if (invitation.site_id) {
+        // Determine site role based on user role
+        const siteRole = invitation.role === 'admin' ? 'owner' :
+                        invitation.role === 'client_editor' ? 'editor' : 'viewer';
+
+        await storage.createSiteMember({
+          site_id: invitation.site_id,
+          user_id: user.id,
+          role: siteRole,
+        });
+      }
+
+      // Mark invitation as used
+      await storage.markInvitationTokenAsUsed(invitation.id);
+
+      // Sign in the user automatically
+      const { data: sessionData, error: sessionError } = await supabase.auth.signInWithPassword({
+        email: invitation.email,
+        password: password,
+      });
+
+      if (sessionError || !sessionData.session) {
+        console.error('Failed to create session:', sessionError);
+        // User is created but we couldn't sign them in automatically
+        return res.json({
+          success: true,
+          message: "Account created successfully. Please sign in.",
+          user: {
+            id: user.id,
+            email: user.email,
+            full_name: user.full_name,
+          },
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Account created and signed in successfully",
+        user: {
+          id: user.id,
+          email: user.email,
+          full_name: user.full_name,
+          role: user.role,
+        },
+        session: sessionData.session,
+      });
+    } catch (error) {
+      console.error("Error accepting invitation:", error);
+      res.status(500).json({ error: "Failed to accept invitation" });
     }
   });
 

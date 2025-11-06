@@ -42,6 +42,21 @@ export const users = pgTable("users", {
   created_at: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Invitation tokens table for user invitations
+export const invitation_tokens = pgTable("invitation_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull(),
+  token_hash: text("token_hash").notNull().unique(),
+  full_name: text("full_name"),
+  role: userRoleEnum("role").notNull(),
+  client_id: integer("client_id").references(() => clients.id),
+  site_id: uuid("site_id").references(() => sites.id),
+  invited_by: integer("invited_by").references(() => users.id),
+  expires_at: timestamp("expires_at").notNull(),
+  used_at: timestamp("used_at"),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const articles = pgTable("articles", {
   id: serial("id").primaryKey(),
   user_id: integer("user_id").notNull().references(() => users.id),
@@ -228,6 +243,12 @@ export const insertUserSchema = createInsertSchema(users).omit({
   created_at: true,
 });
 
+export const insertInvitationTokenSchema = createInsertSchema(invitation_tokens).omit({
+  id: true,
+  created_at: true,
+  used_at: true,
+});
+
 export const insertArticleSchema = createInsertSchema(articles).omit({
   id: true,
   created_at: true,
@@ -294,6 +315,8 @@ export type InsertClient = z.infer<typeof insertClientSchema>;
 export type Client = typeof clients.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+export type InsertInvitationToken = z.infer<typeof insertInvitationTokenSchema>;
+export type InvitationToken = typeof invitation_tokens.$inferSelect;
 export type InsertArticle = z.infer<typeof insertArticleSchema>;
 export type Article = typeof articles.$inferSelect;
 export type InsertUsageTracking = z.infer<typeof insertUsageTrackingSchema>;

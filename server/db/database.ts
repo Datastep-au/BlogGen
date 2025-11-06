@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { users, articles, usage_tracking, clients, user_repos, sites, site_members, posts, post_slugs, assets, webhooks, webhook_delivery_logs, scheduled_jobs, type User, type InsertUser, type Article, type InsertArticle, type UsageTracking, type InsertUsageTracking, type Client, type InsertClient, type UserRepo, type InsertUserRepo, type Site, type InsertSite, type SiteMember, type InsertSiteMember, type Post, type InsertPost, type PostSlug, type InsertPostSlug, type Asset, type InsertAsset, type Webhook, type InsertWebhook, type WebhookDeliveryLog, type InsertWebhookDeliveryLog, type ScheduledJob, type InsertScheduledJob } from '@shared/schema';
-import { eq, and, lte, desc, isNull, gt, inArray } from 'drizzle-orm';
+import { users, articles, usage_tracking, clients, user_repos, sites, site_members, posts, post_slugs, assets, webhooks, webhook_delivery_logs, scheduled_jobs, invitation_tokens, type User, type InsertUser, type Article, type InsertArticle, type UsageTracking, type InsertUsageTracking, type Client, type InsertClient, type UserRepo, type InsertUserRepo, type Site, type InsertSite, type SiteMember, type InsertSiteMember, type Post, type InsertPost, type PostSlug, type InsertPostSlug, type Asset, type InsertAsset, type Webhook, type InsertWebhook, type WebhookDeliveryLog, type InsertWebhookDeliveryLog, type ScheduledJob, type InsertScheduledJob, type InvitationToken, type InsertInvitationToken } from '@shared/schema';
+import { eq, and, lte, desc, isNull, gt, inArray, sql } from 'drizzle-orm';
 import type { IStorage } from '../storage';
 
 // Use DATABASE_URL which connects to the working heliumdb database
@@ -509,6 +509,50 @@ export class DatabaseStorage implements IStorage {
         eq(scheduled_jobs.job_type, 'publish_article_to_cms'),
         sql`${scheduled_jobs.payload}->>'article_id' = ${articleId.toString()}`,
         isNull(scheduled_jobs.completed_at)
+      ));
+  }
+
+  // Invitation token methods
+  async createInvitationToken(token: InsertInvitationToken): Promise<InvitationToken> {
+    const result = await db.insert(invitation_tokens).values([token]).returning();
+    return result[0];
+  }
+
+  async getInvitationTokenByHash(tokenHash: string): Promise<InvitationToken | undefined> {
+    const result = await db.select().from(invitation_tokens)
+      .where(eq(invitation_tokens.token_hash, tokenHash))
+      .limit(1);
+    return result[0];
+  }
+
+  async getInvitationTokenByEmail(email: string): Promise<InvitationToken | undefined> {
+    const result = await db.select().from(invitation_tokens)
+      .where(and(
+        eq(invitation_tokens.email, email),
+        isNull(invitation_tokens.used_at)
+      ))
+      .orderBy(desc(invitation_tokens.created_at))
+      .limit(1);
+    return result[0];
+  }
+
+  async markInvitationTokenAsUsed(id: string): Promise<InvitationToken> {
+    const result = await db.update(invitation_tokens)
+      .set({ used_at: new Date() })
+      .where(eq(invitation_tokens.id, id))
+      .returning();
+
+    if (!result[0]) {
+      throw new Error('Invitation token not found');
+    }
+    return result[0];
+  }
+
+  async deleteExpiredInvitationTokens(): Promise<void> {
+    await db.delete(invitation_tokens)
+      .where(and(
+        lte(invitation_tokens.expires_at, new Date()),
+        isNull(invitation_tokens.used_at)
       ));
   }
 }

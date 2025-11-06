@@ -6,6 +6,7 @@ import Dashboard from '@/pages/Dashboard';
 import LandingPage from '@/pages/LandingPage';
 import AuthPage from '@/pages/AuthPage';
 import Admin from '@/pages/Admin';
+import AcceptInvite from '@/pages/AcceptInvite';
 import { Switch, Route as WouterRoute } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -18,6 +19,7 @@ function AppRouter() {
     <Switch>
       <WouterRoute path="/" component={LandingPage} />
       <WouterRoute path="/auth" component={AuthPage} />
+      <WouterRoute path="/accept-invite" component={AcceptInvite} />
       <WouterRoute path="/app" component={() => (
         <AuthGuard>
           <Layout>
