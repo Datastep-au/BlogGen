@@ -11,6 +11,7 @@ import cmsRouter from "./routes/cms";
 import adminSitesRouter from "./routes/admin/sites";
 import adminWebhooksRouter from "./routes/admin/webhooks";
 import adminPostsRouter from "./routes/admin/posts";
+import { supabaseAdmin } from "./lib/supabaseAdmin";
 
 const generateRequestSchema = z.object({
   topic: z.string().optional(),
@@ -58,6 +59,9 @@ const HERO_IMAGE_TYPE_EXTENSION: Record<string, string> = {
   "image/png": "png",
   "image/webp": "webp",
 };
+
+// Shared Supabase admin client (null when credentials missing)
+const supabase = supabaseAdmin;
 
 async function prepareHeroImageForCommit(article: Article) {
   const heroUrl = article.hero_image_url;
@@ -422,6 +426,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Password must be at least 8 characters long" });
       }
 
+      const supabaseClient = supabase;
+      if (!supabaseClient) {
+        return res.status(500).json({ error: "Authentication service not configured. Please contact support." });
+      }
+
       // Hash the token to look it up
       const { hashToken, isTokenExpired } = await import('./lib/inviteToken.js');
       const tokenHash = hashToken(token);
@@ -450,7 +459,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create Supabase auth user
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
         email: invitation.email,
         password: password,
         email_confirm: true, // Auto-confirm email
@@ -502,7 +511,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.markInvitationTokenAsUsed(invitation.id);
 
       // Sign in the user automatically
-      const { data: sessionData, error: sessionError } = await supabase.auth.signInWithPassword({
+      const { data: sessionData, error: sessionError } = await supabaseClient.auth.signInWithPassword({
         email: invitation.email,
         password: password,
       });
@@ -598,7 +607,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Delete Supabase auth user if they have one
-      if (user.supabase_user_id) {
+      if (supabase && user.supabase_user_id) {
         try {
           await supabase.auth.admin.deleteUser(user.supabase_user_id);
         } catch (error) {
