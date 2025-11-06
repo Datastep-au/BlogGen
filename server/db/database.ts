@@ -80,6 +80,10 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(users).where(eq(users.client_id, clientId));
   }
 
+  async deleteUser(id: number): Promise<void> {
+    await db.delete(users).where(eq(users.id, id));
+  }
+
   // Article methods
   async getArticle(id: number): Promise<Article | undefined> {
     const result = await db.select().from(articles).where(eq(articles.id, id)).limit(1);

@@ -290,13 +290,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const site = sites[0];
 
-      // Check if user already exists
+      // Check if user already exists with a Supabase account
       const existingUser = await storage.getUserByEmail(email);
-      if (existingUser) {
+      if (existingUser && existingUser.supabase_user_id) {
         return res.status(400).json({
-          error: "User with this email already exists. Please use a different email or manage the existing user."
+          error: "User with this email already has an active account. Please use the admin panel to manage their access."
         });
       }
+
+      // If user exists but has no Supabase account, they can be re-invited
+      // This allows re-inviting users who were previously removed but preserves their historical data
 
       // Generate invitation token
       const { generateInviteToken, hashToken, getTokenExpiration } = await import('./lib/inviteToken.js');
@@ -442,8 +445,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(invitation.email);
-      if (existingUser) {
-        return res.status(400).json({ error: "User already exists" });
+      if (existingUser && existingUser.supabase_user_id) {
+        return res.status(400).json({ error: "User already has an active account" });
       }
 
       // Create Supabase auth user
@@ -461,14 +464,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Failed to create user account" });
       }
 
-      // Create user in our database
-      const user = await storage.createUser({
-        email: invitation.email,
-        supabase_user_id: authData.user.id,
-        full_name: invitation.full_name,
-        role: invitation.role,
-        client_id: invitation.client_id || undefined,
-      });
+      // Create or update user in our database
+      let user;
+      if (existingUser) {
+        // User exists but had no Supabase account - update them
+        user = await storage.updateUser(existingUser.id, {
+          supabase_user_id: authData.user.id,
+          full_name: invitation.full_name || existingUser.full_name,
+          role: invitation.role,
+          client_id: invitation.client_id || existingUser.client_id,
+        });
+      } else {
+        // Create new user
+        user = await storage.createUser({
+          email: invitation.email,
+          supabase_user_id: authData.user.id,
+          full_name: invitation.full_name,
+          role: invitation.role,
+          client_id: invitation.client_id || undefined,
+        });
+      }
 
       // Create site membership if site_id exists
       if (invitation.site_id) {
@@ -582,15 +597,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.deleteSiteMember(membership.id);
       }
 
-      // Remove client assignment and downgrade role
+      // Delete Supabase auth user if they have one
+      if (user.supabase_user_id) {
+        try {
+          await supabase.auth.admin.deleteUser(user.supabase_user_id);
+        } catch (error) {
+          console.error('Failed to delete Supabase auth user:', error);
+          // Continue even if Supabase deletion fails
+        }
+      }
+
+      // Remove Supabase link and client assignment (keep user record for history)
       await storage.updateUser(userId, {
+        supabase_user_id: null,
         client_id: null,
         role: 'client_viewer' as any
       });
 
       res.json({
         success: true,
-        message: "User removed from all sites and workspaces"
+        message: "User access removed. They can be re-invited if needed."
       });
     } catch (error) {
       console.error("Error removing user:", error);
