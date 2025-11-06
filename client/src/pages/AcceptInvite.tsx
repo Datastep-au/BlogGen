@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -7,9 +7,9 @@ import { Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function AcceptInvite() {
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get('token');
-  const navigate = useNavigate();
+  const [location, navigate] = useLocation();
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
   const { toast } = useToast();
   const { signIn } = useAuth();
 
