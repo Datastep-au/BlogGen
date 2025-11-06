@@ -22,8 +22,11 @@ export async function authenticateRequest(req: Request, res: Response, next: Nex
       '/api/invitations/accept',
     ];
 
+    // Express removes the mount path (/api) from req.path, so rebuild full path for matching
+    const requestPath = req.baseUrl ? `${req.baseUrl}${req.path}` : req.path;
+
     // Check if this is a public route
-    const isPublicRoute = publicRoutes.some(route => req.path.startsWith(route) || req.path === route);
+    const isPublicRoute = publicRoutes.some(route => requestPath.startsWith(route) || requestPath === route);
     if (isPublicRoute) {
       return next();
     }
