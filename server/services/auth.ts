@@ -16,6 +16,18 @@ const supabase = (supabaseUrl !== 'https://placeholder.supabase.co' && supabaseS
  */
 export async function authenticateRequest(req: Request, res: Response, next: NextFunction) {
   try {
+    // Public routes that don't require authentication
+    const publicRoutes = [
+      '/api/invitations/validate/',
+      '/api/invitations/accept',
+    ];
+
+    // Check if this is a public route
+    const isPublicRoute = publicRoutes.some(route => req.path.startsWith(route) || req.path === route);
+    if (isPublicRoute) {
+      return next();
+    }
+
     // If Supabase is not configured, return error
     if (!supabase) {
       return res.status(500).json({ error: 'Authentication service not configured. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.' });
