@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { CheckCircle2, AlertCircle, Calendar } from 'lucide-react';
 import TopicForm from '@/components/TopicForm';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseUrl } from '@/lib/supabase';
 
 export default function Generate() {
   const { user } = useAuth();
@@ -78,7 +78,6 @@ export default function Generate() {
       console.log('Current user:', user);
 
       // Check if Supabase URL and key are available
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
       if (!supabaseUrl || !supabaseAnonKey) {
