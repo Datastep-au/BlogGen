@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Save, X, RefreshCw, Image as ImageIcon } from 'lucide-react';
+import { Save, X, RefreshCw, Image as ImageIcon, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Article } from '@shared/schema';
 
@@ -24,7 +24,9 @@ export default function ArticleEditor({ article, onSave, onCancel, isLoading = f
   const [newKeyword, setNewKeyword] = useState('');
   const [imagePrompt, setImagePrompt] = useState('');
   const [isRegeneratingImage, setIsRegeneratingImage] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [heroImageUrl, setHeroImageUrl] = useState(article.hero_image_url || '');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const handleSave = () => {
@@ -105,6 +107,94 @@ export default function ArticleEditor({ article, onSave, onCancel, isLoading = f
     } finally {
       setIsRegeneratingImage(false);
     }
+  };
+
+  const handleUploadImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Error',
+        description: 'Please select an image file',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: 'Error',
+        description: 'Image must be less than 10MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!accessToken) {
+      toast({
+        title: 'Error',
+        description: 'Authentication required',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const response = await fetch(`/api/articles/${article.id}/upload-image`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        credentials: 'include',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to upload image');
+      }
+
+      const data = await response.json();
+      const uploadedUrl = data.hero_image_url;
+
+      if (uploadedUrl) {
+        setHeroImageUrl(uploadedUrl);
+        toast({
+          title: 'Success',
+          description: 'Image uploaded successfully',
+        });
+      } else {
+        toast({
+          title: 'Warning',
+          description: 'Image was uploaded but the URL was missing from the response.',
+        });
+      }
+
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to upload image',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handleUploadButtonClick = () => {
+    fileInputRef.current?.click();
   };
 
   const addKeyword = () => {
@@ -189,6 +279,53 @@ export default function ArticleEditor({ article, onSave, onCancel, isLoading = f
                 />
               </div>
             )}
+
+            <div className="space-y-3">
+              <Label className="block text-sm font-medium text-gray-700">
+                Upload Your Own Image
+              </Label>
+              <div className="flex gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleUploadImage}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  onClick={handleUploadButtonClick}
+                  disabled={isUploadingImage || isLoading}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  {isUploadingImage ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4 mr-2" />
+                      Upload Image
+                    </>
+                  )}
+                </Button>
+              </div>
+              <p className="text-sm text-gray-500">
+                Upload your own image (max 10MB, JPG, PNG, or WebP)
+              </p>
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-white px-2 text-gray-500">Or generate with AI</span>
+              </div>
+            </div>
+
             <div className="space-y-3">
               <Label htmlFor="image-prompt" className="block text-sm font-medium text-gray-700">
                 {heroImageUrl ? 'Regenerate with custom prompt' : 'Generate hero image with custom prompt'}

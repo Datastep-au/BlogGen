@@ -1241,6 +1241,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Upload custom image for article
+  app.post("/api/articles/:id/upload-image", requireClientAccess, async (req, res) => {
+    console.log('=== UPLOAD IMAGE REQUEST ===');
+    console.log('Article ID:', req.params.id);
+    console.log('User ID:', req.user?.id);
+
+    try {
+      const multer = (await import('multer')).default;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        console.log('ERROR: No userId found');
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const articleId = parseInt(req.params.id);
+      console.log('Parsed article ID:', articleId);
+
+      // Verify article exists
+      const article = await storage.getArticle(articleId);
+      if (!article) {
+        return res.status(404).json({ error: "Article not found" });
+      }
+
+      // Check edit permission
+      const { canEditArticle } = await import('./lib/authorization');
+      if (!(await canEditArticle(userId, articleId))) {
+        return res.status(403).json({ error: "You don't have permission to edit this article" });
+      }
+
+      // Get the site to access storage bucket
+      if (!article.site_id) {
+        return res.status(400).json({ error: "Article is not associated with a site" });
+      }
+
+      const site = await storage.getSite(article.site_id);
+      if (!site) {
+        return res.status(404).json({ error: "Site not found" });
+      }
+
+      // Configure multer for memory storage
+      const upload = multer({
+        storage: multer.memoryStorage(),
+        limits: {
+          fileSize: 10 * 1024 * 1024, // 10MB limit
+        },
+        fileFilter: (req, file, cb) => {
+          // Accept only image files
+          if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+          } else {
+            cb(new Error('Only image files are allowed'));
+          }
+        },
+      });
+
+      // Process the upload
+      const uploadMiddleware = upload.single('image');
+
+      uploadMiddleware(req, res, async (err) => {
+        if (err) {
+          console.error('Upload error:', err);
+          return res.status(400).json({
+            error: err.message || 'Failed to upload image'
+          });
+        }
+
+        if (!req.file) {
+          return res.status(400).json({ error: 'No image file provided' });
+        }
+
+        console.log('File uploaded:', {
+          originalName: req.file.originalname,
+          mimetype: req.file.mimetype,
+          size: req.file.size
+        });
+
+        try {
+          // Upload to Supabase storage
+          const { uploadImage } = await import('./lib/supabaseStorage');
+
+          const uploadedImages = await uploadImage(
+            req.file.buffer,
+            req.file.originalname,
+            {
+              siteId: site.id,
+              postId: articleId.toString(),
+              role: 'hero',
+              generateVariants: true
+            }
+          );
+
+          if (!uploadedImages || uploadedImages.length === 0) {
+            return res.status(500).json({ error: 'Failed to process uploaded image' });
+          }
+
+          // Use the hero variant (or the first one if hero not found)
+          const heroImage = uploadedImages.find(img => img.variant === 'hero') || uploadedImages[0];
+          const newImageUrl = heroImage.url;
+
+          console.log('Image uploaded to storage:', newImageUrl);
+
+          // Update article with new image
+          const updatedArticle = await storage.updateArticle(articleId, {
+            hero_image_url: newImageUrl
+          });
+
+          console.log('Image upload complete:');
+          console.log('  New image URL:', newImageUrl);
+          console.log('  Updated article hero_image_url:', updatedArticle.hero_image_url);
+
+          res.json({
+            success: true,
+            hero_image_url: newImageUrl,
+            variants: uploadedImages,
+            article: updatedArticle
+          });
+        } catch (error) {
+          console.error('Error processing uploaded image:', error);
+          res.status(500).json({
+            error: error instanceof Error ? error.message : 'Failed to process image'
+          });
+        }
+      });
+    } catch (error) {
+      console.error("Error uploading article image:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to upload image"
+      });
+    }
+  });
+
   // Export article as ZIP (markdown + images)
   app.get("/api/articles/:id/export", requireClientAccess, async (req, res) => {
     try {
