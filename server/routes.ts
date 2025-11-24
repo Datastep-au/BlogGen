@@ -12,6 +12,7 @@ import adminSitesRouter from "./routes/admin/sites";
 import adminWebhooksRouter from "./routes/admin/webhooks";
 import adminPostsRouter from "./routes/admin/posts";
 import { supabaseAdmin } from "./lib/supabaseAdmin";
+import multer from "multer";
 
 const generateRequestSchema = z.object({
   topic: z.string().optional(),
@@ -1303,7 +1304,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('User ID:', req.user?.id);
 
     try {
-      const multer = (await import('multer')).default;
       const userId = req.user?.id;
 
       if (!userId) {
