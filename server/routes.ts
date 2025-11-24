@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateBlogArticle, generateMultipleBlogArticles } from "./lib/openai";
+import { generateBlogArticle, generateMultipleBlogArticles, editBlogArticle } from "./lib/openai";
 import { insertArticleSchema, insertClientSchema, type Article } from "@shared/schema";
 import { z } from "zod";
 import { githubService } from "./services/github";
@@ -1237,6 +1237,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error regenerating article image:", error);
       res.status(500).json({
         error: error instanceof Error ? error.message : "Failed to regenerate image"
+      });
+    }
+  });
+
+  // Edit article with AI instructions
+  app.post("/api/articles/:id/edit-with-ai", requireClientAccess, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const articleId = parseInt(req.params.id);
+      const { instructions, currentContent } = req.body;
+
+      if (!instructions) {
+        return res.status(400).json({ error: "Instructions are required" });
+      }
+
+      // Verify article exists
+      const article = await storage.getArticle(articleId);
+      if (!article) {
+        return res.status(404).json({ error: "Article not found" });
+      }
+
+      // Check edit permission
+      const { canEditArticle } = await import('./lib/authorization');
+      if (!(await canEditArticle(userId, articleId))) {
+        return res.status(403).json({ error: "You don't have permission to edit this article" });
+      }
+
+      // Use provided content or fall back to database content
+      const articleData = {
+        title: currentContent?.title || article.title,
+        content: currentContent?.content || article.content,
+        metaDescription: currentContent?.meta_description || article.meta_description,
+        keywords: currentContent?.keywords || article.keywords,
+      };
+
+      const editedArticle = await editBlogArticle(articleData, instructions);
+
+      res.json({
+        success: true,
+        article: {
+          title: editedArticle.title,
+          content: editedArticle.content,
+          meta_description: editedArticle.metaDescription,
+          keywords: editedArticle.keywords,
+        }
+      });
+
+    } catch (error) {
+      console.error("Error editing article with AI:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to edit article" 
       });
     }
   });

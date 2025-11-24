@@ -162,6 +162,69 @@ Always respond with valid JSON format.`;
   }
 }
 
+export async function editBlogArticle(currentArticle: Partial<BlogArticle>, instructions: string): Promise<BlogArticle> {
+  try {
+    const prompt = `You are an expert editor. Please edit the following blog post based on these instructions.
+
+Instructions: "${instructions}"
+
+Current Article:
+Title: ${currentArticle.title}
+Meta Description: ${currentArticle.metaDescription}
+Keywords: ${currentArticle.keywords?.join(', ')}
+Content:
+${currentArticle.content}
+
+Please provide the response in JSON format with the following structure:
+{
+  "title": "Updated title (keep original if no changes needed)",
+  "metaDescription": "Updated meta description (keep original if no changes needed)",
+  "keywords": ["keyword1", "keyword2"],
+  "content": "Updated content...",
+  "wordCount": estimated_word_count
+}
+
+Requirements:
+- Follow the user's instructions precisely
+- Maintain SEO best practices
+- Keep the JSON format valid
+- If the instructions only apply to one part (e.g. content), keep the other parts (title, meta) unchanged or consistent with the changes.`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "You are a professional blog editor. Your task is to improve and modify blog posts based on specific user instructions while maintaining SEO best practices. Always respond with valid JSON."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.7,
+      max_tokens: 4000
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || '{}');
+    
+    // Validate and format the response
+    const article: BlogArticle = {
+      title: result.title || currentArticle.title || '',
+      content: result.content || currentArticle.content || '',
+      metaDescription: result.metaDescription || currentArticle.metaDescription || '',
+      keywords: Array.isArray(result.keywords) ? result.keywords : (currentArticle.keywords || []),
+      wordCount: result.wordCount || result.content?.split(/\s+/).length || 0
+    };
+
+    return article;
+  } catch (error) {
+    console.error('Error editing blog article:', error);
+    throw new Error(`Failed to edit article: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
 export async function generateMultipleBlogArticles(topics: string[]): Promise<{
   articles: BlogArticle[];
   errors: string[];

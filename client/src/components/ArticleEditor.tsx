@@ -23,6 +23,8 @@ export default function ArticleEditor({ article, onSave, onCancel, isLoading = f
   const [keywords, setKeywords] = useState<string[]>(article.keywords || []);
   const [newKeyword, setNewKeyword] = useState('');
   const [imagePrompt, setImagePrompt] = useState('');
+  const [editInstructions, setEditInstructions] = useState('');
+  const [isEditingWithAI, setIsEditingWithAI] = useState(false);
   const [isRegeneratingImage, setIsRegeneratingImage] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [heroImageUrl, setHeroImageUrl] = useState(article.hero_image_url || '');
@@ -38,6 +40,76 @@ export default function ArticleEditor({ article, onSave, onCancel, isLoading = f
       keywords,
       hero_image_url: heroImageUrl,
     });
+  };
+
+  const handleEditWithAI = async () => {
+    if (!editInstructions.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please enter instructions for the AI',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!accessToken) {
+      toast({
+        title: 'Error',
+        description: 'Authentication required',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsEditingWithAI(true);
+    try {
+      const response = await fetch(`/api/articles/${article.id}/edit-with-ai`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          instructions: editInstructions,
+          currentContent: {
+            title,
+            content,
+            meta_description: metaDescription,
+            keywords,
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to edit article with AI');
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.article) {
+        setTitle(data.article.title);
+        setContent(data.article.content);
+        setMetaDescription(data.article.meta_description);
+        setKeywords(data.article.keywords);
+        
+        toast({
+          title: 'Success',
+          description: 'Article updated based on your instructions',
+        });
+        setEditInstructions('');
+      }
+    } catch (error) {
+      console.error('Error editing with AI:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to edit with AI',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsEditingWithAI(false);
+    }
   };
 
   const handleRegenerateImage = async () => {
@@ -232,6 +304,48 @@ export default function ArticleEditor({ article, onSave, onCancel, isLoading = f
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
+        {/* AI Edit Section */}
+        <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 space-y-3">
+          <div className="flex items-center gap-2 text-blue-800 font-medium">
+            <RefreshCw className="w-4 h-4" />
+            <span>Edit with AI</span>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ai-instructions" className="text-sm text-blue-700">
+              Instructions for AI Editor
+            </Label>
+            <div className="flex gap-2">
+              <Textarea
+                id="ai-instructions"
+                value={editInstructions}
+                onChange={(e) => setEditInstructions(e.target.value)}
+                placeholder="e.g., 'Make the tone more professional', 'Add a section about benefits', 'Fix grammar and flow'"
+                className="min-h-[80px] bg-white"
+                disabled={isEditingWithAI || isLoading}
+              />
+            </div>
+            <div className="flex justify-end">
+              <Button
+                onClick={handleEditWithAI}
+                disabled={!editInstructions.trim() || isEditingWithAI || isLoading}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {isEditingWithAI ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Apply Changes
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+
         <div>
           <Label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
             Article Title
