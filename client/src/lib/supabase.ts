@@ -38,9 +38,13 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Missing Supabase environment variables:', { 
     hasUrl: !!supabaseUrl, 
     hasKey: !!supabaseAnonKey,
-    hasDbUrl: !!databaseUrl 
+    hasDbUrl: !!databaseUrl,
+    envSupabaseUrl,
+    databaseUrl 
   });
   throw new Error('Missing Supabase environment variables. Please check your .env file.');
 }
+
+console.log('Initializing Supabase client with URL:', supabaseUrl);
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
