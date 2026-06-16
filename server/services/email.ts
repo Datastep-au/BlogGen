@@ -144,6 +144,8 @@ export class EmailService {
       formData.append('subject', subject);
       formData.append('text', textContent);
       formData.append('html', htmlContent);
+      formData.append('o:tracking-clicks', 'no');
+      formData.append('o:tracking-opens', 'no');
 
       const response = await fetch(
         `${MAILGUN_BASE_URL}/v3/${this.domain}/messages`,
