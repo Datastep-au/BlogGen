@@ -4,6 +4,11 @@ const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY || '';
 const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN || 'bloggen.pro';
 const FROM_EMAIL = process.env.MAILGUN_FROM_EMAIL || `BlogGen <noreply@${MAILGUN_DOMAIN}>`;
 const APP_URL = process.env.APP_URL || 'https://bloggen.pro';
+// EU region uses api.eu.mailgun.net, US uses api.mailgun.net
+const MAILGUN_REGION = process.env.MAILGUN_REGION || 'us';
+const MAILGUN_BASE_URL = MAILGUN_REGION === 'eu'
+  ? 'https://api.eu.mailgun.net'
+  : 'https://api.mailgun.net';
 
 export class EmailService {
   private apiKey: string;
@@ -12,6 +17,7 @@ export class EmailService {
   constructor() {
     this.apiKey = MAILGUN_API_KEY;
     this.domain = MAILGUN_DOMAIN;
+    console.log(`[EmailService] Mailgun config: domain=${this.domain}, region=${MAILGUN_REGION}, baseUrl=${MAILGUN_BASE_URL}, keySet=${!!this.apiKey}`);
   }
 
   /**
@@ -140,7 +146,7 @@ export class EmailService {
       formData.append('html', htmlContent);
 
       const response = await fetch(
-        `https://api.mailgun.net/v3/${this.domain}/messages`,
+        `${MAILGUN_BASE_URL}/v3/${this.domain}/messages`,
         {
           method: 'POST',
           headers: {
@@ -153,6 +159,7 @@ export class EmailService {
 
       if (!response.ok) {
         const errorText = await response.text();
+        console.error(`Mailgun error [${response.status}] region=${MAILGUN_REGION} domain=${this.domain}: ${errorText}`);
         throw new Error(`Mailgun API error: ${response.status} - ${errorText}`);
       }
 
@@ -181,7 +188,7 @@ export class EmailService {
       formData.append('text', 'This is a test email from BlogGen to verify email functionality is working correctly!');
 
       const response = await fetch(
-        `https://api.mailgun.net/v3/${this.domain}/messages`,
+        `${MAILGUN_BASE_URL}/v3/${this.domain}/messages`,
         {
           method: 'POST',
           headers: {
@@ -194,6 +201,7 @@ export class EmailService {
 
       if (!response.ok) {
         const errorText = await response.text();
+        console.error(`Mailgun test error [${response.status}] region=${MAILGUN_REGION} domain=${this.domain}: ${errorText}`);
         throw new Error(`Mailgun API error: ${response.status} - ${errorText}`);
       }
 
