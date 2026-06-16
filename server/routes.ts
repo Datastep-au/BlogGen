@@ -342,6 +342,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Don't fail the whole operation if email fails, just warn
       }
 
+      const appUrl = process.env.APP_URL || 'https://bloggen.pro';
+      const invitationLink = `${appUrl}/accept-invite?token=${plainToken}`;
+
       res.json({
         success: true,
         invitation: {
@@ -354,6 +357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           name: site.name,
         },
         emailSent: emailResult.success,
+        invitationLink: emailResult.success ? undefined : invitationLink,
         message: emailResult.success
           ? `Invitation sent to ${email} for ${client.name} (${site.name}). The link will expire in 48 hours.`
           : `Invitation created for ${email}, but email delivery failed. Please share the invitation link manually.`

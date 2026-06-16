@@ -68,6 +68,7 @@ export default function Admin() {
   const [newRole, setNewRole] = useState<string>("");
   const [rotatedApiKey, setRotatedApiKey] = useState<SiteWithKey | null>(null);
   const [newClientCredentials, setNewClientCredentials] = useState<SiteWithKey | null>(null);
+  const [invitationLink, setInvitationLink] = useState<{ email: string; link: string } | null>(null);
   const [expandedClient, setExpandedClient] = useState<number | null>(null);
 
   // Fetch all clients
@@ -128,16 +129,20 @@ export default function Admin() {
       return await response.json();
     },
     onSuccess: (data) => {
-      toast({
-        title: "User Invited",
-        description: data.message,
-      });
       if (selectedClient) {
         queryClient.invalidateQueries({ queryKey: [`/api/admin/clients/${selectedClient.id}/users`] });
       }
       setIsInviteDialogOpen(false);
       setInviteEmail("");
       setInviteRole("client_editor");
+      if (!data.emailSent && data.invitationLink) {
+        setInvitationLink({ email: data.invitation.email, link: data.invitationLink });
+      } else {
+        toast({
+          title: "User Invited",
+          description: data.message,
+        });
+      }
     },
     onError: (error: any) => {
       toast({
@@ -826,6 +831,45 @@ export default function Admin() {
                 "Update Role"
               )}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invitation Link Dialog - shown when email delivery fails */}
+      <Dialog open={!!invitationLink} onOpenChange={(open) => { if (!open) setInvitationLink(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Share Invitation Link</DialogTitle>
+            <DialogDescription>
+              The invitation was created for <strong>{invitationLink?.email}</strong>, but the email could not be delivered. Copy the link below and share it manually.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Label>Invitation Link</Label>
+            <div className="flex gap-2">
+              <Input
+                readOnly
+                value={invitationLink?.link ?? ""}
+                className="font-mono text-xs"
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  if (invitationLink?.link) {
+                    navigator.clipboard.writeText(invitationLink.link);
+                    toast({ title: "Copied!", description: "Invitation link copied to clipboard." });
+                  }
+                }}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">This link expires in 48 hours.</p>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setInvitationLink(null)}>Done</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
