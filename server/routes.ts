@@ -275,7 +275,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Invite user to client workspace (creates invitation token for signup)
   app.post("/api/admin/clients/:clientId/invite", requireAdmin, async (req, res) => {
     try {
-      const { email, full_name, role = "client_editor", site_role = "editor" } = req.body;
+      const { full_name, role = "client_editor", site_role = "editor" } = req.body;
+      const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
       const clientId = parseInt(req.params.clientId);
 
       if (!email) {
@@ -491,7 +492,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         // Create new user
         user = await storage.createUser({
-          email: invitation.email,
+          email: invitation.email.toLowerCase(),
           supabase_user_id: authData.user.id,
           full_name: invitation.full_name,
           role: invitation.role,
