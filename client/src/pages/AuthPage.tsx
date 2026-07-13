@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Redirect } from 'wouter';
-import { Mail, Lock, Eye, EyeOff, Info } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Info, MailCheck } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,12 +8,14 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 
 export default function AuthPage() {
-  const { user, signIn } = useAuth();
+  const { user, signIn, resetPassword } = useAuth();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<'signin' | 'forgot'>('signin');
+  const [resetSent, setResetSent] = useState(false);
 
   if (user) {
     return <Redirect to="/app" />;
@@ -40,6 +42,30 @@ export default function AuthPage() {
     }
   };
 
+  const handleForgotSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      await resetPassword(email);
+      setResetSent(true);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to send reset email',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const switchMode = (newMode: 'signin' | 'forgot') => {
+    setMode(newMode);
+    setResetSent(false);
+    setPassword('');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -51,12 +77,74 @@ export default function AuthPage() {
               className="w-48 h-48"
             />
           </div>
-          <h2 className="text-3xl font-bold text-gray-900">Welcome back</h2>
+          <h2 className="text-3xl font-bold text-gray-900">
+            {mode === 'signin' ? 'Welcome back' : 'Reset your password'}
+          </h2>
           <p className="mt-2 text-gray-600">
-            Sign in with the credentials provided by your administrator.
+            {mode === 'signin'
+              ? 'Sign in with the credentials provided by your administrator.'
+              : 'Enter your email and we will send you a link to reset your password.'}
           </p>
         </div>
 
+        {mode === 'forgot' ? (
+          <div className="bg-white rounded-xl shadow-lg p-8 space-y-6">
+            {resetSent ? (
+              <div className="text-center space-y-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full">
+                  <MailCheck className="w-8 h-8 text-green-600" />
+                </div>
+                <p className="text-gray-700">
+                  If an account exists for <strong>{email}</strong>, a password reset link has been
+                  sent. Check your inbox and follow the link to set a new password.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => switchMode('signin')}
+                >
+                  Back to Sign In
+                </Button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotSubmit} className="space-y-4">
+                <div>
+                  <Label htmlFor="reset-email">Email address</Label>
+                  <div className="relative mt-1">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Input
+                      id="reset-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Enter your email"
+                      className="pl-10"
+                      required
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-12"
+                >
+                  {loading ? 'Sending...' : 'Send Reset Link'}
+                </Button>
+
+                <button
+                  type="button"
+                  onClick={() => switchMode('signin')}
+                  className="w-full text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                >
+                  Back to Sign In
+                </button>
+              </form>
+            )}
+          </div>
+        ) : (
         <div className="bg-white rounded-xl shadow-lg p-8 space-y-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -107,6 +195,16 @@ export default function AuthPage() {
             >
               {loading ? 'Loading...' : 'Sign In'}
             </Button>
+
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={() => switchMode('forgot')}
+                className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+              >
+                Forgot password?
+              </button>
+            </div>
           </form>
 
           <div className="flex items-start gap-3 rounded-lg bg-blue-50 border border-blue-100 p-4 text-sm text-blue-700">
@@ -116,6 +214,7 @@ export default function AuthPage() {
             </p>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

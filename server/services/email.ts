@@ -1,9 +1,9 @@
 import fetch from 'node-fetch';
 
 const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY || '';
-const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN || 'bloggen.pro';
+const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN || 'bloggenpro.com';
 const FROM_EMAIL = process.env.MAILGUN_FROM_EMAIL || `BlogGen <noreply@${MAILGUN_DOMAIN}>`;
-const APP_URL = process.env.APP_URL || 'https://bloggen.pro';
+const APP_URL = process.env.APP_URL || 'https://bloggenpro.com';
 // EU region uses api.eu.mailgun.net, US uses api.mailgun.net
 const MAILGUN_REGION = process.env.MAILGUN_REGION || 'us';
 const MAILGUN_BASE_URL = MAILGUN_REGION === 'eu'
